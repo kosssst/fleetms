@@ -1,7 +1,11 @@
 # authentication/forms.py
 from django import forms
+from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
 
+def validate_letters_only(value):
+    if not all(char.isalpha() or char.isspace() for char in value):
+        raise ValidationError("This field must contain only letters and spaces.")
 
 class UserSignupForm(forms.Form):
     username = forms.CharField(
@@ -22,19 +26,13 @@ class UserSignupForm(forms.Form):
     first_name = forms.CharField(
         max_length=50,
         validators=[
-            RegexValidator(
-                regex=r'^\p{L}+$',
-                message="First name must be alphabetic"
-            )
+            validate_letters_only
         ]
     )
     last_name = forms.CharField(
         max_length=50,
         validators=[
-            RegexValidator(
-                regex=r'^\p{L}*$',
-                message="Last name must be alphabetic"
-            )
+            validate_letters_only
         ],
         required=False
     )
