@@ -7,7 +7,7 @@ import '@mantine/core/styles.css';
 
 export default function RootLayout({ children, }: Readonly<{ children: React.ReactNode; }>) {
   return (
-    <html lang="en" data-lt-installed="true">
+    <html lang="en" data-lt-installed="true" suppressHydrationWarning={true}>
       <body>
         <MantineProvider defaultColorScheme="dark">
           {children}

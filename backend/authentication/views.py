@@ -1,17 +1,19 @@
 import json
+
+from django.db import IntegrityError
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.hashers import make_password, check_password
 from django.contrib.auth import login as auth_login
+from rest_framework.decorators import api_view
 
 from .models import User
-from .forms import UserSignupForm
+from .forms import UserSignupForm, UserLoginForm
+
 
 @csrf_exempt
+@api_view(['POST', 'OPTIONS'])
 def signup(request):
-    if request.method != 'POST':
-        return JsonResponse({'error': 'Invalid request method'}, status=405)
-
     data = json.loads(request.body)
     form = UserSignupForm(data)
 
@@ -32,21 +34,27 @@ def signup(request):
         first_name=first_name,
         last_name=last_name
     )
-    user.save()
+    try:
+        user.save()
+    except IntegrityError:
+        return JsonResponse({'error': 'User already exists'}, status=400)
 
     return JsonResponse({'message': 'User created successfully'}, status=201)
 
 @csrf_exempt
+@api_view(['POST', 'OPTIONS'])
 def login(request):
-    if request.method != 'POST':
-        return JsonResponse({'error': 'Invalid request method'}, status=405)
-
     data = json.loads(request.body)
-    username = data.get('username')
-    email = data.get('email')
-    password = data.get('password')
+    form = UserLoginForm(data)
 
-    if not (username or email) or not password:
+    if not form.is_valid():
+        return JsonResponse({'error': 'Invalid data', 'details': form.errors}, status=400)
+
+    username = form.cleaned_data['username']
+    email = form.cleaned_data['email']
+    password = form.cleaned_data['password']
+
+    if not (username or email):
         return JsonResponse({'error': 'Username/Email and password are required'}, status=400)
 
     try:
