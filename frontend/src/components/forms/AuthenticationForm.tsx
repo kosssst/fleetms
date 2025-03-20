@@ -12,10 +12,10 @@ import {
     Text,
     TextInput,
 } from '@mantine/core';
-import { useForm } from '@mantine/form';
-import { useToggle } from '@mantine/hooks';
+import {useForm} from '@mantine/form';
+import {useToggle} from '@mantine/hooks';
 import classes from './AuthenticationForm.module.scss';
-import { API_BASE_URL, PROJECT_NAME } from '@/constants/appConfig';
+import {API_BASE_URL, PROJECT_NAME} from '@/constants/appConfig';
 
 export function AuthenticationForm(props: PaperProps) {
     const [type, toggle] = useToggle(['login', 'register']);
@@ -34,10 +34,21 @@ export function AuthenticationForm(props: PaperProps) {
             first_name: (val) => (type === 'login' || /^\p{L}+$/u.test(val) ? null : 'Invalid first name'),
             last_name: (val) => (type === 'login' || /^\p{L}*$/u.test(val) ? null : 'Invalid last name'),
             username: (val) => (type === 'login' || /^[a-zA-Z0-9_]{3,}$/.test(val) ? null : 'Invalid username'),
-            email: (val) => (/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(val) ? null : 'Invalid email'),
             password: (val) => (val.length < 8 ? 'Password should include at least 8 characters' : null),
             confirmPassword: (val, values) => (type === 'login' || val === values.password ? null : 'Passwords do not match'),
             terms: (val) => (type === 'login' || val ? null : 'You should accept terms and conditions'),
+            email: (val) => {
+                if (type === 'login') {
+                    return /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(val) ||
+                    /^[a-zA-Z0-9_]{3,}$/.test(val)
+                        ? null
+                        : 'Invalid email or username';
+                } else {
+                    return /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(val)
+                        ? null
+                        : 'Invalid email';
+                }
+            },
         },
     });
 
@@ -45,7 +56,7 @@ export function AuthenticationForm(props: PaperProps) {
         if (type === 'register') {
             // eslint-disable-next-line @typescript-eslint/no-unused-vars
             const { confirmPassword, terms, ...values } = form.values;
-            // console.log('Register', values);
+
             try {
                 const response = await fetch(API_BASE_URL + '/auth/signup', {
                     method: 'POST',
@@ -58,7 +69,7 @@ export function AuthenticationForm(props: PaperProps) {
                 if (response.ok) {
                     toggle();
                 } else {
-                    alert(data.message);
+                    alert(data.error);
                 }
             } catch (error) {
                 console.error(error);
@@ -68,21 +79,23 @@ export function AuthenticationForm(props: PaperProps) {
 
         if (type === 'login') {
             const { email, password } = form.values;
+            const isEmail = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email);
 
             try {
                 const response = await fetch(API_BASE_URL + '/auth/login', {
                     method: 'POST',
                     credentials: 'include',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, password }),
+                    body: JSON.stringify(isEmail
+                        ? { email, password }
+                        : { username: email, password }),
                 });
 
                 if (response.ok) {
-                    const redirectUrl = new URLSearchParams(window.location.search).get('redirect') || '/';
-                    window.location.href = redirectUrl;
+                    window.location.href = new URLSearchParams(window.location.search).get('redirect') || '/';
                 } else {
                     const data = await response.json();
-                    alert(data.message);
+                    alert(data.error);
                 }
             } catch (error) {
                 console.error(error);
@@ -136,11 +149,11 @@ export function AuthenticationForm(props: PaperProps) {
 
                     <TextInput
                         required
-                        label="Email"
-                        placeholder="hello@mantine.dev"
+                        label={type === 'login' ? "Email or Username" : "Email"}
+                        placeholder={type === 'login' ? "Your email or username" : "hello@mantine.dev"}
                         value={form.values.email}
                         onChange={(event) => form.setFieldValue('email', event.currentTarget.value)}
-                        error={form.errors.email && 'Invalid email'}
+                        error={form.errors.email && (type === 'login' ? 'Invalid email or username' : 'Invalid email')}
                         radius="md"
                     />
 

@@ -1,7 +1,6 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import Cookies from "js-cookie";
 import { useEffect, useState } from "react";
 import { API_BASE_URL } from "@/constants/appConfig";
 
@@ -16,24 +15,23 @@ const withAuth = (WrappedComponent: ComponentType) => {
 
         useEffect(() => {
             async function checkAuth() {
-                const token = Cookies.get("auth_token");
+                try {
+                    const response = await fetch(API_BASE_URL + "/auth/check", {
+                        method: "GET",
+                        credentials: "include",
+                    });
 
-                if (!token) {
+                    if (response.ok) {
+                        setIsAuthenticated(true);
+                    } else {
+                        router.replace(`/auth?redirect=${encodeURIComponent(window.location.pathname || "/")}`);
+                    }
+                } catch (error) {
+                    console.error("Auth check failed:", error);
                     router.replace(`/auth?redirect=${encodeURIComponent(window.location.pathname || "/")}`);
-                    return;
+                } finally {
+                    setLoading(false);
                 }
-
-                const response = await fetch(API_BASE_URL + "/auth/check", {
-                    method: "GET",
-                    credentials: "include",
-                });
-
-                if (response.ok) {
-                    setIsAuthenticated(true);
-                } else {
-                    router.replace(`/auth?redirect=${encodeURIComponent(window.location.pathname || "/")}`);
-                }
-                setLoading(false);
             }
 
             checkAuth();
