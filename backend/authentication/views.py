@@ -73,7 +73,17 @@ def login(request):
 
     auth_login(request, user)
 
-    return JsonResponse({'message': 'Login successful'}, status=200)
+    return_data = {
+        'user_id': user.user_id,
+        'username': user.username,
+        'email': user.email,
+        'first_name': user.first_name,
+        'last_name': user.last_name,
+        'role': user.role,
+        'company_id': user.company.id if user.company else None,
+    }
+
+    return JsonResponse(return_data, status=200)
 
 def check_auth(request):
     if request.user.is_authenticated:
