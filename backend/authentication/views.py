@@ -2,7 +2,7 @@ import json
 
 from django.db import IntegrityError
 from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 from django.contrib.auth.hashers import make_password, check_password
 from django.contrib.auth import login as auth_login
 from rest_framework.decorators import api_view
@@ -12,7 +12,7 @@ from .forms import UserSignupForm, UserLoginForm
 
 
 @csrf_exempt
-@api_view(['POST', 'OPTIONS'])
+@api_view(['POST'])
 def signup(request):
     data = json.loads(request.body)
     form = UserSignupForm(data)
@@ -42,7 +42,7 @@ def signup(request):
     return JsonResponse({'message': 'User created successfully'}, status=201)
 
 @csrf_exempt
-@api_view(['POST', 'OPTIONS'])
+@api_view(['POST'])
 def login(request):
     data = json.loads(request.body)
     form = UserLoginForm(data)
@@ -85,6 +85,8 @@ def login(request):
 
     return JsonResponse(return_data, status=200)
 
+@api_view(['GET'])
+@ensure_csrf_cookie
 def check_auth(request):
     if request.user.is_authenticated:
         return JsonResponse({'message': 'Authenticated'}, status=200)

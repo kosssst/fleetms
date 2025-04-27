@@ -1,14 +1,14 @@
 "use client";
 
 import withAuth from "@/components/hoc/WithAuth";
-import { Header } from "../components/headers/Header";
-import { Text } from "@mantine/core";
+import { Header } from "@/components/headers/Header";
+import {CompanyInfoBox} from "@/components/containers/CompanyInfoBox";
 
 function Home() {
   return (
     <div>
       <Header />
-      <Text ta="center" size="xl" style={{ marginTop: 20 }} fw={700}>Test Application</Text>
+      <CompanyInfoBox />
     </div>
   );
 }

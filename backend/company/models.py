@@ -7,3 +7,9 @@ class Company(models.Model):
 
     def __str__(self):
         return self.name
+
+    def get_public_data(self):
+        return {
+            "id": self.id,
+            "name": self.name
+        }

@@ -3,7 +3,7 @@ from django.core.validators import RegexValidator
 
 from .models import Company
 
-class CompanyCreationForm(forms.ModelForm):
+class CompanyCreationForm(forms.Form):
     name = forms.CharField(
         max_length=100,
         error_messages={
