@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { API_BASE_URL } from "@/constants/appConfig";
 
 import { ComponentType } from "react";
+import axios from "axios";
 
 const withAuth = (WrappedComponent: ComponentType) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -14,24 +15,21 @@ const withAuth = (WrappedComponent: ComponentType) => {
         const [isAuthenticated, setIsAuthenticated] = useState(false);
 
         useEffect(() => {
-            async function checkAuth() {
-                try {
-                    const response = await fetch(API_BASE_URL + "/auth/check", {
-                        method: "GET",
-                        credentials: "include",
-                    });
-
-                    if (response.ok) {
+            function checkAuth() {
+                axios.get(`${API_BASE_URL}/auth/check`, {
+                    withCredentials: true,
+                }).then((response) => {
+                    if (response.status === 200) {
                         setIsAuthenticated(true);
                     } else {
                         router.replace(`/auth?redirect=${encodeURIComponent(window.location.pathname || "/")}`);
                     }
-                } catch (error) {
+                }).catch((error) => {
                     console.error("Auth check failed:", error);
                     router.replace(`/auth?redirect=${encodeURIComponent(window.location.pathname || "/")}`);
-                } finally {
+                }).finally(() => {
                     setLoading(false);
-                }
+                })
             }
 
             checkAuth();

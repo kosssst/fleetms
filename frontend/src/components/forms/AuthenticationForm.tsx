@@ -14,6 +14,7 @@ import {
 } from '@mantine/core';
 import {useForm} from '@mantine/form';
 import {useToggle} from '@mantine/hooks';
+import axios from 'axios';
 import classes from './AuthenticationForm.module.scss';
 import {API_BASE_URL, PROJECT_NAME} from '@/constants/appConfig';
 
@@ -57,50 +58,53 @@ export function AuthenticationForm(props: PaperProps) {
             // eslint-disable-next-line @typescript-eslint/no-unused-vars
             const { confirmPassword, terms, ...values } = form.values;
 
-            try {
-                const response = await fetch(API_BASE_URL + '/auth/signup', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(values),
-                });
-
-                const data = await response.json();
-
-                if (response.ok) {
+            await axios.post(`${API_BASE_URL}/auth/signup`, values, {
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            }).then((response) => {
+                if (response.status === 200 || response.status === 201) {
                     toggle();
                 } else {
-                    alert(data.error);
+                    alert(response.data.error);
                 }
-            } catch (error) {
+            }).catch((error) => {
                 console.error(error);
                 alert('Something went wrong');
-            }
+            });
         }
 
         if (type === 'login') {
             const { email, password } = form.values;
             const isEmail = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email);
 
-            try {
-                const response = await fetch(API_BASE_URL + '/auth/login', {
-                    method: 'POST',
-                    credentials: 'include',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(isEmail
-                        ? { email, password }
-                        : { username: email, password }),
-                });
 
-                if (response.ok) {
+            await axios.post(`${API_BASE_URL}/auth/login`, isEmail
+                ? { email, password }
+                : { username: email, password }, {
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                withCredentials: true,
+            }).then((response) => {
+                if (response.status === 200 || response.status === 201) {
+                    localStorage.setItem('user_id', response.data.user_id);
+                    localStorage.setItem('username', response.data.username);
+                    localStorage.setItem('email', response.data.email);
+                    localStorage.setItem('first_name', response.data.first_name);
+                    localStorage.setItem('last_name', response.data.last_name);
+                    localStorage.setItem('role', response.data.role);
+                    if (response.data.company_id) {
+                        localStorage.setItem('company_id', response.data.company_id);
+                    }
                     window.location.href = new URLSearchParams(window.location.search).get('redirect') || '/';
                 } else {
-                    const data = await response.json();
-                    alert(data.error);
+                    alert(response.data.error);
                 }
-            } catch (error) {
+            }).catch((error) => {
                 console.error(error);
                 alert('Something went wrong');
-            }
+            });
         }
     }
 
