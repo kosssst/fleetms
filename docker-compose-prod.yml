@@ -2,7 +2,7 @@ services:
   backend:
     build: ./backend
     ports:
-      - "127.0.0.1:8000:8000"
+      - "127.0.0.1:3001:8000"
     restart: unless-stopped
     environment:
       - MONGODB_URI=mongodb://mongo:27017/fleetms
@@ -21,7 +21,7 @@ services:
       args:
         NEXT_PUBLIC_API_URL: ${API_URL}
     ports:
-      - "127.0.0.1:3000:3000"
+      - "127.0.0.1:3002:3000"
     restart: unless-stopped
     environment:
       - NEXT_PUBLIC_API_URL=${API_URL}
