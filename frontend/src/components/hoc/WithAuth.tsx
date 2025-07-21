@@ -1,49 +1,52 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { API_BASE_URL } from "@/constants/appConfig";
+import { useEffect, useState, ComponentType } from "react";
+import { checkAuth } from "@/services/auth.service";
 
-import { ComponentType } from "react";
-import axios from "axios";
-
-const withAuth = (WrappedComponent: ComponentType) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return function ProtectedRoute(props: any) {
+const withAuth = <P extends object>(WrappedComponent: ComponentType<P>) => {
+    const ProtectedRoute = (props: P) => {
         const router = useRouter();
         const [loading, setLoading] = useState(true);
         const [isAuthenticated, setIsAuthenticated] = useState(false);
 
         useEffect(() => {
-            function checkAuth() {
-                axios.get(`${API_BASE_URL}/auth/check`, {
-                    withCredentials: true,
-                }).then((response) => {
-                    if (response.status === 200) {
-                        setIsAuthenticated(true);
-                    } else {
-                        router.replace(`/auth?redirect=${encodeURIComponent(window.location.pathname || "/")}`);
-                    }
-                }).catch((error) => {
-                    console.error("Auth check failed:", error);
+            console.log("withAuth: useEffect triggered.");
+            const verifyAuth = async () => {
+                try {
+                    console.log("withAuth: Calling checkAuth()...");
+                    await checkAuth();
+                    console.log("withAuth: checkAuth() successful. User is authenticated.");
+                    setIsAuthenticated(true);
+                } catch (error) {
+                    console.error("withAuth: checkAuth() failed.", error);
+                    console.log("withAuth: Redirecting to login page.");
                     router.replace(`/auth?redirect=${encodeURIComponent(window.location.pathname || "/")}`);
-                }).finally(() => {
+                } finally {
+                    console.log("withAuth: Setting loading to false.");
                     setLoading(false);
-                })
-            }
+                }
+            };
 
-            checkAuth();
+            verifyAuth();
         }, [router]);
 
+        console.log("withAuth: Rendering component.", { loading, isAuthenticated });
+
         if (loading) {
+            console.log("withAuth: Render -> Loading...");
             return <div>Loading...</div>;
         }
         if (!isAuthenticated) {
+            console.log("withAuth: Render -> Not authenticated, returning null.");
             return null;
         }
 
+        console.log("withAuth: Render -> Authenticated, rendering wrapped component.");
         return <WrappedComponent {...props} />;
     };
+
+    return ProtectedRoute;
 };
 
 export default withAuth;

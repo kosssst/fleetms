@@ -1,19 +1,23 @@
-FROM python:3.12-slim AS builder
-
-RUN mkdir /app
+# Stage 1: Builder
+FROM node:18 AS builder
 
 WORKDIR /app
 
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
+COPY package*.json ./
+RUN npm install
 
-RUN pip install --upgrade pip
+COPY . .
+RUN npm run build
 
-COPY requirements.txt /app/
+# Stage 2: Production
+FROM node:18-alpine
 
-RUN pip install --no-cache-dir -r requirements.txt
+WORKDIR /app
 
-COPY . /app/
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package.json ./package.json
 
-CMD python manage.py migrate && \
-    gunicorn backend.wsgi:application --bind 0.0.0.0:8000
+EXPOSE 8000
+
+CMD ["node", "dist/index.js"]
