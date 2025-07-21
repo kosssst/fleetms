@@ -1,0 +1,39 @@
+name: Deploy PR
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy PR via SSH
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            set -e
+            REPO_URL="https://github.com/${{ github.repository }}.git"
+            PR_BRANCH="${{ github.head_ref }}"
+            PR_DIR="/home/kosssst/repos/fleetms-pr-${{ github.event.number }}"
+
+            if [ -d "$PR_DIR" ]; then
+              echo "Directory $PR_DIR already exists. Cleaning up."
+              sudo rm -rf "$PR_DIR"
+            fi
+            
+            echo "Cloning $REPO_URL branch $PR_BRANCH into $PR_DIR"
+            git clone --single-branch --branch "$PR_BRANCH" "$REPO_URL" "$PR_DIR"
+            
+            echo "Copying .env file"
+            cp /home/kosssst/repos/stage.env "$PR_DIR/.env"
+            
+            cd "$PR_DIR"
+            
+            echo "Running docker-compose"
+            sudo docker compose -f docker-compose-stage.yml up -d --build

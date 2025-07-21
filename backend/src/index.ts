@@ -22,8 +22,8 @@ app.use(cors({
 app.use(express.json());
 app.use(cookieParser());
 
-app.use('/api/auth', authRoutes);
-app.use('/api/company', companyRoutes);
+app.use('/auth', authRoutes);
+app.use('/company', companyRoutes);
 
 app.get('/', (req: Request, res: Response) => {
   res.send('Express + TypeScript Server');

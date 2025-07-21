@@ -1,0 +1,46 @@
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "127.0.0.1:3003:8000"
+    restart: unless-stopped
+    environment:
+      - MONGODB_URI=mongodb://mongo:27017/fleetms
+      - JWT_SECRET=${JWT_SECRET}
+      - REFRESH_TOKEN_SECRET=${REFRESH_TOKEN_SECRET}
+      - FRONTEND_URL=${FRONTEND_URL}
+      - NODE_ENV=production
+    depends_on:
+      - mongo
+    networks:
+      - fleetms-network
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_API_URL: ${API_URL}
+    ports:
+      - "127.0.0.1:3004:3000"
+    restart: unless-stopped
+    environment:
+      - NEXT_PUBLIC_API_URL=${API_URL}
+    depends_on:
+      - backend
+    networks:
+      - fleetms-network
+
+  mongo:
+    image: mongo:latest
+    container_name: fleetms-mongo
+    restart: unless-stopped
+    volumes:
+      - db_data:/data/db
+    networks:
+      - fleetms-network
+
+volumes:
+  db_data:
+
+networks:
+  fleetms-network:
