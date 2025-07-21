@@ -1,5 +1,5 @@
 import { AuthenticationForm } from "@/components/forms/AuthenticationForm";
-import './authpage.css';
+import '@/styles/auth.css';
 
 export default function Auth() {
     return (

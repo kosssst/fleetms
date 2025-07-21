@@ -1,19 +1,15 @@
 services:
   backend:
     build: ./backend
-    command: npm run dev
     ports:
       - "127.0.0.1:8000:8000"
     restart: unless-stopped
-    volumes:
-      - ./backend:/app
-      - /app/node_modules
     environment:
       - MONGODB_URI=mongodb://mongo:27017/fleetms
       - JWT_SECRET=${JWT_SECRET}
       - REFRESH_TOKEN_SECRET=${REFRESH_TOKEN_SECRET}
       - FRONTEND_URL=${FRONTEND_URL}
-      - NODE_ENV=development
+      - NODE_ENV=production
     depends_on:
       - mongo
     networks:
@@ -23,16 +19,12 @@ services:
     build:
       context: ./frontend
       args:
-        NEXT_PUBLIC_API_URL: http://localhost:8000
-    command: npm run dev
+        NEXT_PUBLIC_API_URL: ${API_URL}
     ports:
       - "127.0.0.1:3000:3000"
     restart: unless-stopped
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - NEXT_PUBLIC_API_URL=${API_URL}
     depends_on:
       - backend
     networks:
