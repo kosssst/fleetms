@@ -32,7 +32,7 @@ services:
 
   mongo:
     image: mongo:latest
-    container_name: fleetms-mongo
+    container_name: fleetms-mongo-stage
     restart: unless-stopped
     volumes:
       - db_data:/data/db
