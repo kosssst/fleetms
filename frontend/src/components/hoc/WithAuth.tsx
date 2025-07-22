@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState, ComponentType } from "react";
 import { checkAuth } from "@/services/auth.service";
+import { Loading } from "@/components/common/Loading";
 
 const withAuth = <P extends object>(WrappedComponent: ComponentType<P>) => {
     const ProtectedRoute = (props: P) => {
@@ -11,19 +12,13 @@ const withAuth = <P extends object>(WrappedComponent: ComponentType<P>) => {
         const [isAuthenticated, setIsAuthenticated] = useState(false);
 
         useEffect(() => {
-            console.log("withAuth: useEffect triggered.");
             const verifyAuth = async () => {
                 try {
-                    console.log("withAuth: Calling checkAuth()...");
                     await checkAuth();
-                    console.log("withAuth: checkAuth() successful. User is authenticated.");
                     setIsAuthenticated(true);
-                } catch (error) {
-                    console.error("withAuth: checkAuth() failed.", error);
-                    console.log("withAuth: Redirecting to login page.");
+                } catch {
                     router.replace(`/auth?redirect=${encodeURIComponent(window.location.pathname || "/")}`);
                 } finally {
-                    console.log("withAuth: Setting loading to false.");
                     setLoading(false);
                 }
             };
@@ -31,18 +26,13 @@ const withAuth = <P extends object>(WrappedComponent: ComponentType<P>) => {
             verifyAuth();
         }, [router]);
 
-        console.log("withAuth: Rendering component.", { loading, isAuthenticated });
-
         if (loading) {
-            console.log("withAuth: Render -> Loading...");
-            return <div>Loading...</div>;
+            return <Loading />;
         }
         if (!isAuthenticated) {
-            console.log("withAuth: Render -> Not authenticated, returning null.");
             return null;
         }
 
-        console.log("withAuth: Render -> Authenticated, rendering wrapped component.");
         return <WrappedComponent {...props} />;
     };
 

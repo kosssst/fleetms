@@ -1,11 +1,12 @@
 "use client";
 
 import classes from './CompanyInfoBox.module.scss';
-import { Button, Paper, Text, LoadingOverlay } from '@mantine/core';
+import { Button, Paper, Text } from '@mantine/core';
 import { useState } from "react";
 import { CreateCompanyForm } from "@/components/forms/CreateCompanyForm";
 import { useCompany } from '@/hooks/useCompany';
 import { Company } from '@/types/company.types';
+import { Loading } from "@/components/common/Loading";
 
 export function CompanyInfoBox() {
   const { company, loading, error, setCompany } = useCompany();
@@ -19,7 +20,7 @@ export function CompanyInfoBox() {
   if (loading) {
     return (
       <Paper radius="md" p="sm" withBorder className={classes.companyInfoBox}>
-        <LoadingOverlay visible />
+        <Loading />
       </Paper>
     );
   }
