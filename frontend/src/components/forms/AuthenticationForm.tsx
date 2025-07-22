@@ -18,7 +18,6 @@ import { useRouter } from 'next/navigation';
 import Cookies from 'js-cookie';
 import { login, register } from '@/services/auth.service';
 import { RegisterFormValues } from '@/types/auth.types';
-import { User } from '@/types/user.types';
 import classes from './AuthenticationForm.module.scss';
 import { PROJECT_NAME } from '@/constants/appConfig';
 
@@ -60,12 +59,10 @@ export function AuthenticationForm(props: PaperProps) {
         if (type === 'login') {
             const { email, password } = form.values;
             try {
-                const data: User = await login({ email, password });
-                Cookies.set('token', data.token);
-                localStorage.setItem('user', JSON.stringify(data));
-                if (data.companyId) {
-                    localStorage.setItem('company_id', data.companyId);
-                }
+                const { token, ...user } = await login({ email, password });
+                Cookies.set('token', token);
+                localStorage.setItem('user', JSON.stringify(user));
+                
                 router.push('/');
             } catch (error) {
                 console.error(error);

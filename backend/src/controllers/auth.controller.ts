@@ -191,3 +191,20 @@ export const resetPassword = asyncHandler(async (req: Request, res: Response) =>
 export const checkAuth = asyncHandler(async (req: Request, res: Response) => {
   res.status(200).json({ message: 'Authenticated' });
 });
+
+export const getMe = asyncHandler(async (req: RequestWithUser, res: Response) => {
+  const user = req.user;
+  if (user) {
+    res.status(200).json({
+      _id: user._id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      role: user.role,
+      companyId: user.companyId,
+    });
+  } else {
+    res.status(404);
+    throw new Error('User not found');
+  }
+});

@@ -7,7 +7,6 @@ import classes from './Header.module.scss';
 import { PROJECT_NAME } from '@/constants/appConfig';
 import { useAuth } from '@/hooks/useAuth';
 import Cookies from 'js-cookie';
-import { useRouter } from 'next/navigation';
 
 const links = [
   { link: '/about', label: 'Features' },
@@ -20,13 +19,11 @@ export function Header() {
   const [opened, { toggle }] = useDisclosure(false);
   const [active, setActive] = useState(links[0].link);
   const { user } = useAuth();
-  const router = useRouter();
 
   const handleLogout = () => {
     Cookies.remove('token');
-    localStorage.removeItem('user');
-    localStorage.removeItem('company_id');
-    router.push('/auth');
+    localStorage.clear();
+    window.location.href = '/';
   };
 
   const items = links.map((link) => (
