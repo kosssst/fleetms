@@ -19,7 +19,6 @@ const generateRefreshToken = (id: string) => {
 
 export const register = asyncHandler(async (req: Request, res: Response) => {
   const { firstName, lastName, email, password } = req.body;
-  const name = `${firstName} ${lastName}`;
 
   const userExists = await UserModel.findOne({ email });
 
@@ -29,7 +28,8 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
   }
 
   const user = await UserModel.create({
-    name,
+    firstName,
+    lastName,
     email,
     password,
   }) as User;
@@ -49,7 +49,8 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
 
     res.status(201).json({
       _id: user._id,
-      name: user.name,
+      firstName: user.firstName,
+      lastName: user.lastName,
       email: user.email,
       role: user.role,
       token: accessToken,
@@ -80,7 +81,8 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
 
     res.json({
       _id: user._id,
-      name: user.name,
+      firstName: user.firstName,
+      lastName: user.lastName,
       email: user.email,
       role: user.role,
       token: accessToken,
@@ -130,7 +132,8 @@ export const refreshToken = asyncHandler(async (req: Request, res: Response) => 
 
     res.json({
       _id: user._id,
-      name: user.name,
+      firstName: user.firstName,
+      lastName: user.lastName,
       email: user.email,
       role: user.role,
       token: accessToken,

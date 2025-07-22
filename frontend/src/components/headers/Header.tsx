@@ -1,10 +1,13 @@
 "use client";
 
 import { useState } from 'react';
-import { Burger, Container, Group } from '@mantine/core';
+import { Burger, Container, Group, Button, Text } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import classes from './Header.module.scss';
 import { PROJECT_NAME } from '@/constants/appConfig';
+import { useAuth } from '@/hooks/useAuth';
+import Cookies from 'js-cookie';
+import { useRouter } from 'next/navigation';
 
 const links = [
   { link: '/about', label: 'Features' },
@@ -16,6 +19,15 @@ const links = [
 export function Header() {
   const [opened, { toggle }] = useDisclosure(false);
   const [active, setActive] = useState(links[0].link);
+  const { user } = useAuth();
+  const router = useRouter();
+
+  const handleLogout = () => {
+    Cookies.remove('token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('company_id');
+    router.push('/auth');
+  };
 
   const items = links.map((link) => (
     <a
@@ -39,7 +51,14 @@ export function Header() {
         <Group gap={5} visibleFrom="xs">
           {items}
         </Group>
-
+        {user && (
+          <Group>
+            <Text>
+              {user.firstName} {user.lastName}
+            </Text>
+            <Button onClick={handleLogout}>Logout</Button>
+          </Group>
+        )}
         <Burger opened={opened} onClick={toggle} hiddenFrom="xs" size="sm" />
       </Container>
     </header>

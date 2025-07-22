@@ -1,3 +1,4 @@
 *.env
 db_backups/
 .idea/
+dist/
