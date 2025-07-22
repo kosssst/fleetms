@@ -1,12 +1,11 @@
 "use client";
 
 import { useState } from 'react';
-import {Burger, Container, Group, Button, Text, Image} from '@mantine/core';
-import { useDisclosure } from '@mantine/hooks';
+import { Container, Group, Text, Image } from '@mantine/core';
 import classes from './Header.module.scss';
 import { PROJECT_NAME } from '@/constants/appConfig';
 import { useAuth } from '@/hooks/useAuth';
-import Cookies from 'js-cookie';
+import Link from 'next/link';
 
 const links = [
   { link: '/about', label: 'Features' },
@@ -16,15 +15,8 @@ const links = [
 ];
 
 export function Header() {
-  const [opened, { toggle }] = useDisclosure(false);
   const [active, setActive] = useState(links[0].link);
   const { user } = useAuth();
-
-  const handleLogout = () => {
-    Cookies.remove('token');
-    localStorage.clear();
-    window.location.href = '/';
-  };
 
   const items = links.map((link) => (
     <a
@@ -44,26 +36,26 @@ export function Header() {
   return (
     <header className={classes.header}>
       <Container fluid px="md" className={classes.inner}>
-        <Group>
-          <Image src="/logo.svg" alt="Project Logo" h={30} />
-          <Text fw={700} size="30">{PROJECT_NAME}</Text>
-        </Group>
+        <Link href="/" style={{ textDecoration: 'none', color: 'inherit' }}>
+          <Group>
+            <Image src="/logo.svg" alt="Project Logo" h={30} />
+            <Text fw={700} size="30">{PROJECT_NAME}</Text>
+          </Group>
+        </Link>
 
         <Group gap={5} visibleFrom="xs" className={classes.nav}>
           {items}
         </Group>
 
-        <Group>
-          {user && (
-            <Group visibleFrom="xs">
-              <Text>
-                {user.firstName} {user.lastName}
-              </Text>
-              <Button onClick={handleLogout}>Logout</Button>
-            </Group>
-          )}
-          <Burger opened={opened} onClick={toggle} hiddenFrom="xs" size="sm" />
-        </Group>
+        <Link href="/profile" className={classes.link}>
+          <Group visibleFrom="xs">
+            <Text>
+              {user.firstName} {user.lastName}
+            </Text>
+            <Image src="/profile-icon-dark-theme.svg" alt="Profile" h={30} />
+          </Group>
+        </Link>
+
       </Container>
     </header>
   );

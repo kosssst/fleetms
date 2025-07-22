@@ -127,3 +127,5 @@ Only write high-value comments if at all. Avoid talking to the user through comm
 ## General style requirements
 
 Use hyphens instead of underscores in flag names (e.g. `my-flag` instead of `my_flag`).
+Do not remove any code unless it is not specified in the task, or it is crucial for completing this task.
+Do not override any .svg files unless it is specified in the task.

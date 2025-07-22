@@ -4,8 +4,17 @@ import { useState, useEffect } from 'react';
 import { User } from '@/types/user.types';
 import { getMe } from '@/services/auth.service';
 
-export function useAuth() {
-  const [user, setUser] = useState<User | null>(null);
+const dummyUser: User = {
+  _id: "",
+  firstName: "",
+  lastName: "",
+  email: "",
+  role: "user",
+  token: "",
+}
+
+export function useAuth()  {
+  const [user, setUser] = useState<User>(dummyUser);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
