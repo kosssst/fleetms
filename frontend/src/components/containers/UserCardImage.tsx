@@ -1,6 +1,6 @@
 import { Avatar, Button, Card, Text } from '@mantine/core';
 import classes from './UserCardImage.module.scss';
-import {useAuth} from "@/hooks/useAuth";
+import {useAuth} from "@/context/AuthContext";
 import {Loading} from "@/components/common/Loading";
 import Cookies from "js-cookie";
 
@@ -14,7 +14,7 @@ export function UserCardImage() {
     window.location.href = '/';
   };
 
-  if (loading) {
+  if (loading || !user) {
     return <Loading />;
   }
 

@@ -5,6 +5,8 @@ import '@mantine/core/styles.css';
 import { PROJECT_NAME} from "@/constants/appConfig";
 
 
+import { AuthProvider } from '@/context/AuthContext';
+
 export default function RootLayout({ children, }: Readonly<{ children: React.ReactNode; }>) {
   return (
     <html lang="en" data-lt-installed="true" suppressHydrationWarning={true}>
@@ -13,7 +15,9 @@ export default function RootLayout({ children, }: Readonly<{ children: React.Rea
       </head>
       <body>
         <MantineProvider defaultColorScheme="dark">
-          {children}
+          <AuthProvider>
+            {children}
+          </AuthProvider>
         </MantineProvider>
       </body>
     </html>

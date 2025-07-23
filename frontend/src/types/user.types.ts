@@ -7,3 +7,14 @@ export interface User {
   token: string;
   companyId?: string;
 }
+
+export interface UpdateUserData {
+  firstName: string;
+  lastName: string;
+  email: string;
+}
+
+export interface UpdatePassword {
+  currentPassword: string;
+  newPassword: string;
+}
