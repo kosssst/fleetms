@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from 'react';
-import { Container, Group, Text, Image } from '@mantine/core';
+import {Container, Group, Image, Title} from '@mantine/core';
 import classes from './Header.module.scss';
 import { PROJECT_NAME } from '@/constants/appConfig';
 import Link from 'next/link';
@@ -36,19 +36,20 @@ export function Header() {
     <header className={classes.header}>
       <Container fluid px="md" className={classes.inner}>
         <Link href="/" style={{ textDecoration: 'none', color: 'inherit' }}>
-          <Group>
-            <Image src="/logo.svg" alt="Project Logo" h={30} />
-            <Text fw={700} size="30">{PROJECT_NAME}</Text>
+          <Group justify="center">
+            <Image src="/logo.svg" alt="Project Logo" h={30} w={30}/>
+            <Title>{PROJECT_NAME}</Title>
           </Group>
         </Link>
 
         <Group gap={5} visibleFrom="xs" className={classes.nav}>
           {items}
         </Group>
-
-        <Link href="/profile" className={classes.link}>
-          <UserButton />
-        </Link>
+        <div>
+          <Link href="/profile" className={classes.link}>
+            <UserButton />
+          </Link>
+        </div>
       </Container>
     </header>
   );
