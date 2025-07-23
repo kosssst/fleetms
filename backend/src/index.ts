@@ -7,6 +7,7 @@ import { notFound, errorHandler } from './middleware/error.middleware';
 
 import authRoutes from './routes/auth.routes';
 import companyRoutes from './routes/company.routes';
+import userRoutes from './routes/user.routes';
 
 dotenv.config();
 
@@ -24,6 +25,7 @@ app.use(cookieParser());
 
 app.use('/auth', authRoutes);
 app.use('/company', companyRoutes);
+app.use('/users', userRoutes);
 
 app.get('/', (req: Request, res: Response) => {
   res.send('Express + TypeScript Server');

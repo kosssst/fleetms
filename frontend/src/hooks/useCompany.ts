@@ -8,19 +8,35 @@ export function useCompany() {
   const [error, setError] = useState<unknown | null>(null);
 
   useEffect(() => {
-    async function fetchCompany() {
-      try {
-        const companyData = await getCompany();
-        setCompany(companyData);
-      } catch (err) {
-        setError(err);
-      } finally {
+    async function loadCompany() {
+      const companyData = localStorage.getItem('company');
+      if (companyData) {
+        setCompany(JSON.parse(companyData));
         setLoading(false);
+      } else {
+        try {
+          const companyData = await getCompany();
+          setCompany(companyData);
+          localStorage.setItem('company', JSON.stringify(companyData));
+        } catch (err) {
+          setError(err);
+        } finally {
+          setLoading(false);
+        }
       }
     }
 
-    fetchCompany();
+    loadCompany();
   }, []);
 
-  return { company, loading, error, setCompany };
+  const setCompanyAndCache = (company: Company | null) => {
+    setCompany(company);
+    if (company) {
+      localStorage.setItem('company', JSON.stringify(company));
+    } else {
+      localStorage.removeItem('company');
+    }
+  };
+
+  return { company, loading, error, setCompany: setCompanyAndCache };
 }

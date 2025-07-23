@@ -15,15 +15,16 @@ import {
 import { useForm } from '@mantine/form';
 import { useToggle } from '@mantine/hooks';
 import { useRouter } from 'next/navigation';
-import Cookies from 'js-cookie';
-import { login, register } from '@/services/auth.service';
+import { register } from '@/services/auth.service';
 import { RegisterFormValues } from '@/types/auth.types';
 import classes from './AuthenticationForm.module.scss';
 import { PROJECT_NAME } from '@/constants/appConfig';
+import { useAuth } from '@/context/AuthContext';
 
 export function AuthenticationForm(props: PaperProps) {
     const [type, toggle] = useToggle(['login', 'register']);
     const router = useRouter();
+    const { login } = useAuth();
     const form = useForm({
         initialValues: {
             firstName: '',
@@ -59,12 +60,7 @@ export function AuthenticationForm(props: PaperProps) {
         if (type === 'login') {
             const { email, password } = form.values;
             try {
-                const data = await login({ email, password });
-                Cookies.set('token', data.token);
-                localStorage.setItem('user', JSON.stringify(data));
-                if (data.companyId) {
-                    localStorage.setItem('company_id', data.companyId);
-                }
+                await login({ email, password });
                 router.push('/');
             } catch (error) {
                 console.error(error);

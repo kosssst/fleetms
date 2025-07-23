@@ -20,3 +20,8 @@ export const checkAuth = async () => {
     const { data } = await api.get('/auth/check');
     return data;
 };
+
+export const getMe = async () => {
+    const { data } = await api.get('/auth/me');
+    return data;
+};

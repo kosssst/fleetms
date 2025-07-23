@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="60.158295mm"
+   height="61.169361mm"
+   viewBox="0 0 60.158295 61.169361"
+   version="1.1"
+   id="svg1"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1">
+    <rect
+       x="262.71738"
+       y="111.7743"
+       width="227.36993"
+       height="233.10196"
+       id="rect1" />
+  </defs>
+  <g
+     id="layer1"
+     transform="translate(-69.257874,-29.826376)">
+    <ellipse
+       style="fill:#000000;stroke-width:0.265;stroke-dasharray:none"
+       id="path1"
+       cx="99.337021"
+       cy="60.411057"
+       rx="30.079147"
+       ry="30.584681" />
+    <text
+       xml:space="preserve"
+       transform="matrix(0.41432991,-0.00565756,0,0.34150295,-30.530244,-14.292424)"
+       id="text1"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:200px;font-family:Bahnschrift;-inkscape-font-specification:'Bahnschrift, @wdth=87';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;font-variation-settings:'wdth' 87;text-align:start;writing-mode:lr-tb;direction:ltr;white-space:pre;shape-inside:url(#rect1);fill:#000000;stroke-width:1.00157;stroke-dasharray:none"><tspan
+         x="251.7168"
+         y="295.5625"
+         id="tspan3"><tspan
+           style="fill:#ffffff"
+           id="tspan2">F</tspan></tspan></text>
+  </g>
+</svg>

@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from 'react';
-import { Burger, Container, Group } from '@mantine/core';
-import { useDisclosure } from '@mantine/hooks';
+import {Container, Group, Image, Title} from '@mantine/core';
 import classes from './Header.module.scss';
 import { PROJECT_NAME } from '@/constants/appConfig';
+import Link from 'next/link';
+import {UserButton} from "@/components/buttons/UserButton";
+import {ThemeSwitcher} from "@/components/buttons/ThemeSwitcher";
 
 const links = [
   { link: '/about', label: 'Features' },
@@ -14,7 +16,6 @@ const links = [
 ];
 
 export function Header() {
-  const [opened, { toggle }] = useDisclosure(false);
   const [active, setActive] = useState(links[0].link);
 
   const items = links.map((link) => (
@@ -34,13 +35,23 @@ export function Header() {
 
   return (
     <header className={classes.header}>
-      <Container size="md" className={classes.inner}>
-        <h1>{PROJECT_NAME}</h1>
-        <Group gap={5} visibleFrom="xs">
+      <Container fluid px="md" className={classes.inner}>
+        <Link href="/" style={{ textDecoration: 'none', color: 'inherit' }}>
+          <Group justify="center">
+            <Image src="/logo.svg" alt="Project Logo" h={30} w={30}/>
+            <Title>{PROJECT_NAME}</Title>
+          </Group>
+        </Link>
+
+        <Group gap={5} visibleFrom="xs" className={classes.nav}>
           {items}
         </Group>
-
-        <Burger opened={opened} onClick={toggle} hiddenFrom="xs" size="sm" />
+        <Group>
+          <ThemeSwitcher />
+          <Link href="/profile" className={classes.link}>
+            <UserButton />
+          </Link>
+        </Group>
       </Container>
     </header>
   );

@@ -7,6 +7,7 @@ import {
   requestPasswordReset,
   resetPassword,
   checkAuth,
+  getMe,
 } from '../controllers/auth.controller';
 import { protect } from '../middleware/auth.middleware';
 
@@ -20,5 +21,6 @@ router.put('/reset-password/:resetToken', resetPassword);
 
 router.post('/logout', protect, logout);
 router.get('/check', protect, checkAuth);
+router.get('/me', protect, getMe);
 
 export default router;
