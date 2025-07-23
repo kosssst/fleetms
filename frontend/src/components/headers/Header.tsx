@@ -4,8 +4,8 @@ import { useState } from 'react';
 import { Container, Group, Text, Image } from '@mantine/core';
 import classes from './Header.module.scss';
 import { PROJECT_NAME } from '@/constants/appConfig';
-import { useAuth } from '@/hooks/useAuth';
 import Link from 'next/link';
+import {UserButton} from "@/components/buttons/UserButton";
 
 const links = [
   { link: '/about', label: 'Features' },
@@ -16,7 +16,6 @@ const links = [
 
 export function Header() {
   const [active, setActive] = useState(links[0].link);
-  const { user } = useAuth();
 
   const items = links.map((link) => (
     <a
@@ -48,14 +47,8 @@ export function Header() {
         </Group>
 
         <Link href="/profile" className={classes.link}>
-          <Group visibleFrom="xs">
-            <Text>
-              {user.firstName} {user.lastName}
-            </Text>
-            <Image src="/profile-icon-dark-theme.svg" alt="Profile" h={30} />
-          </Group>
+          <UserButton />
         </Link>
-
       </Container>
     </header>
   );
