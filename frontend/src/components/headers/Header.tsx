@@ -6,6 +6,7 @@ import classes from './Header.module.scss';
 import { PROJECT_NAME } from '@/constants/appConfig';
 import Link from 'next/link';
 import {UserButton} from "@/components/buttons/UserButton";
+import {ThemeSwitcher} from "@/components/buttons/ThemeSwitcher";
 
 const links = [
   { link: '/about', label: 'Features' },
@@ -45,11 +46,12 @@ export function Header() {
         <Group gap={5} visibleFrom="xs" className={classes.nav}>
           {items}
         </Group>
-        <div>
+        <Group>
+          <ThemeSwitcher />
           <Link href="/profile" className={classes.link}>
             <UserButton />
           </Link>
-        </div>
+        </Group>
       </Container>
     </header>
   );

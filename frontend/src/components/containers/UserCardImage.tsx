@@ -28,13 +28,23 @@ export function UserCardImage() {
         }}
       />
       <Avatar
-        src="profile-avatar.svg"
+        name={`${user.firstName} ${user.lastName}`}
+        color="initials"
         size={80}
         radius={80}
         mx="auto"
         mt={-30}
         className={classes.avatar}
+        variant="default"
       />
+      {/*<Avatar*/}
+      {/*  src="profile-avatar.svg"*/}
+      {/*  size={80}*/}
+      {/*  radius={80}*/}
+      {/*  mx="auto"*/}
+      {/*  mt={-30}*/}
+      {/*  className={classes.avatar}*/}
+      {/*/>*/}
       <Text ta="center" fz="lg" fw={500} mt="sm">
         {user.firstName} {user.lastName}
       </Text>

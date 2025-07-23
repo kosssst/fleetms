@@ -1,7 +1,9 @@
+"use client";
+
 import { IconChevronRight } from '@tabler/icons-react';
 import { Avatar, Group, Text, UnstyledButton } from '@mantine/core';
 import classes from './UserButton.module.scss';
-import {useAuth} from "@/context/AuthContext";
+import { useAuth } from "@/context/AuthContext";
 
 export function UserButton() {
   const { user } = useAuth();
@@ -13,10 +15,7 @@ export function UserButton() {
   return (
     <UnstyledButton className={classes.user}>
       <Group>
-        <Avatar
-          src="profile-avatar.svg"
-          radius="xl"
-        />
+        <Avatar name={`${user.firstName} ${user.lastName}`} color="initials" />
 
         <div style={{ flex: 1 }}>
           <Text size="sm" fw={500}>
