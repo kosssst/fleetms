@@ -132,4 +132,5 @@ Do not override any .svg files unless it is specified in the task.
 
 ## Verifying
 
-Do not verify changes with npm run dev command.
+Do not start, stop or restart any service.
+Run `npm run build` after completing request to verify that the code builds successfully.
