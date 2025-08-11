@@ -3,10 +3,12 @@ export interface User {
   firstName: string;
   lastName: string;
   email: string;
-  role: 'user' | 'company_owner' | 'admin';
+  role: UserRole;
   token: string;
   companyId?: string;
 }
+
+export type UserRole = 'user' | 'company_owner' | 'admin' | 'logist' | 'driver';
 
 export interface UpdateUserData {
   firstName: string;

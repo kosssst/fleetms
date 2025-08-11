@@ -1,5 +1,3 @@
-"use client";
-
 import {
   Paper,
   Text,
@@ -18,6 +16,8 @@ import { Loading } from "@/components/common/Loading";
 import classes from "./CompanyDetails.module.scss"
 import {useEffect, useState} from "react";
 import {IconChevronDown, IconChevronUp, IconSearch, IconSelector} from "@tabler/icons-react";
+import {USER_ROLE_DISPLAY_NAMES} from "@/constants/userRoles";
+import {UserRole} from "@/types/user.types";
 
 interface CompanyDetailsProps {
   company: Company;
@@ -26,7 +26,7 @@ interface CompanyDetailsProps {
 interface RowData {
   name: string;
   email: string;
-  role: string;
+  role: UserRole;
 }
 
 interface ThProps {
@@ -120,7 +120,7 @@ export const CompanyDetailsModule = ({ company }: CompanyDetailsProps) => {
     <Table.Tr key={row.name}>
       <Table.Td>{row.name}</Table.Td>
       <Table.Td>{row.email}</Table.Td>
-      <Table.Td>{row.role}</Table.Td>
+      <Table.Td>{USER_ROLE_DISPLAY_NAMES[row.role]}</Table.Td>
     </Table.Tr>
   ));
 
@@ -164,7 +164,7 @@ export const CompanyDetailsModule = ({ company }: CompanyDetailsProps) => {
                               reversed={reverseSortDirection}
                               onSort={() => setSorting('role')}
                           >
-                              Company
+                              Role
                           </Th>
                       </Table.Tr>
                   </Table.Tbody>
