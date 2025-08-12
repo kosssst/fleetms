@@ -3,6 +3,7 @@ import classes from './UserCardImage.module.scss';
 import {useAuth} from "@/context/AuthContext";
 import {Loading} from "@/components/common/Loading";
 import Cookies from "js-cookie";
+import {USER_ROLE_DISPLAY_NAMES} from "@/constants/userRoles";
 
 
 export function UserCardImage() {
@@ -49,7 +50,7 @@ export function UserCardImage() {
         {user.firstName} {user.lastName}
       </Text>
       <Text ta="center" fz="sm" c="dimmed">
-        {user.role}
+        {USER_ROLE_DISPLAY_NAMES[user.role]}
       </Text>
       <Text ta="center" fz="sm" c="dimmed">
         {user.email}

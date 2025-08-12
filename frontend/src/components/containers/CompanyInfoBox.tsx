@@ -7,6 +7,7 @@ import { CreateCompanyForm } from "@/components/forms/CreateCompanyForm";
 import { useCompany } from '@/hooks/useCompany';
 import { Company } from '@/types/company.types';
 import { Loading } from "@/components/common/Loading";
+import { CompanyDetailsModule } from './CompanyDetails.module';
 
 export function CompanyInfoBox() {
   const { company, loading, error, setCompany } = useCompany();
@@ -34,12 +35,7 @@ export function CompanyInfoBox() {
   }
 
   if (company) {
-    return (
-      <Paper radius="md" p="sm" withBorder className={classes.companyInfoBox}>
-        <Text size="lg" fw={500}>{company.name}</Text>
-        <Text size="xs" fw={500}>id: {company._id}</Text>
-      </Paper>
-    );
+    return <CompanyDetailsModule company={company} />;
   }
 
   if (error) {
