@@ -1,1 +1,192 @@
-@import '@mantine/notifications/styles.css';
+body {
+  background-color: var(--mantine-color-body);
+  color: var(--mantine-color-text);
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+}
+
+.main {
+  flex: 1;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 2rem;
+}
+
+/* Header */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem 0;
+  border-bottom: 1px solid var(--mantine-color-default-border);
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+}
+
+.logo img {
+  height: 40px;
+  margin-right: 0.5rem;
+}
+
+.logo h1 {
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.nav a {
+  margin: 0 1rem;
+  color: var(--mantine-color-text);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.nav a:hover {
+  color: var(--mantine-color-primary-filled-hover);
+}
+
+.loginButton {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--mantine-color-primary-filled);
+  border-radius: 5px;
+  color: var(--mantine-color-primary-filled);
+  font-weight: 500;
+  background-color: transparent;
+}
+
+.loginButton:hover {
+  background-color: var(--mantine-color-primary-filled-hover);
+  color: var(--mantine-color-body);
+}
+
+/* Hero Section */
+.hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4rem 0;
+  text-align: left;
+}
+
+.heroContent {
+  max-width: 50%;
+}
+
+.heroContent h2 {
+  font-size: 3rem;
+  font-weight: 700;
+  line-height: 1.2;
+  margin-bottom: 1.5rem;
+}
+
+.heroContent p {
+  font-size: 1.1rem;
+  margin-bottom: 2rem;
+}
+
+.ctaButton {
+  display: inline-block;
+  padding: 1rem 2rem;
+  background-color: var(--mantine-color-primary-filled);
+  color: var(--mantine-color-body);
+  border-radius: 5px;
+  text-decoration: none;
+  font-weight: 500;
+  transition: background-color 0.2s ease;
+}
+
+.ctaButton:hover {
+  background-color: var(--mantine-color-primary-filled-hover);
+}
+
+.heroImage img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 10px;
+}
+
+/* Features Section */
+.features {
+  display: flex;
+  justify-content: space-around;
+  padding: 4rem 0;
+  text-align: center;
+}
+
+.feature {
+  max-width: 300px;
+}
+
+.feature img {
+  margin-bottom: 1.5rem;
+  border-radius: 50%;
+}
+
+.feature h3 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+/* About Section */
+.about {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4rem 0;
+  background-color: var(--mantine-color-default);
+  border-radius: 10px;
+  margin: 2rem 0;
+}
+
+.aboutImage {
+  flex: 1;
+  padding-right: 2rem;
+}
+
+.aboutImage img {
+  max-width: 100%;
+  border-radius: 10px;
+}
+
+.aboutContent {
+  flex: 1;
+  padding-left: 2rem;
+}
+
+.aboutContent h2 {
+  font-size: 2.5rem;
+  font-weight: 600;
+  margin-bottom: 1.5rem;
+}
+
+.aboutContent p {
+  font-size: 1.1rem;
+  line-height: 1.6;
+}
+
+/* Footer */
+.footer {
+  width: 100%;
+  padding: 2rem 0;
+  border-top: 1px solid var(--mantine-color-default-border);
+  text-align: center;
+  background-color: var(--mantine-color-default);
+}
+
+.footer p {
+  margin-bottom: 1rem;
+}
+
+.socialLinks a {
+  margin: 0 0.75rem;
+  text-decoration: none;
+}
