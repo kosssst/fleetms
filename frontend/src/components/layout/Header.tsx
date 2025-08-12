@@ -47,7 +47,7 @@ export function Header() {
                 <UserButton />
               </Link>
             ) : (
-              <Button component={Link} href="/auth" className="loginButton">
+              <Button component={Link} href="/auth" className="loginButton" variant="outline">
                 Log in
               </Button>
             ))}
