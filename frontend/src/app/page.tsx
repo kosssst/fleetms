@@ -2,7 +2,7 @@
 
 import Head from 'next/head';
 import Image from 'next/image';
-import { ThemeSwitcher } from '@/components/buttons/ThemeSwitcher';
+import { Header } from '@/components/layout/Header';
 
 const LandingPage = () => {
   return (
@@ -14,19 +14,7 @@ const LandingPage = () => {
       </Head>
 
       <main className="main">
-        <header className="header">
-          <div className="logo">
-            <Image src="/logo.svg" alt="FleetMS Logo" width={40} height={40} />
-            <h1>FleetMS</h1>
-          </div>
-          <nav className="nav">
-            <a href="#features">Features</a>
-            <a href="#about">About</a>
-            <a href="#contact">Contact</a>
-            <a href="/auth" className="loginButton">Login</a>
-            <ThemeSwitcher />
-          </nav>
-        </header>
+        <Header />
 
         <section className="hero">
           <div className="heroContent">

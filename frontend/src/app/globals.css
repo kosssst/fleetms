@@ -27,6 +27,17 @@ body {
   border-bottom: 1px solid var(--mantine-color-default-border);
 }
 
+.header-inner {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.profileLink {
+  text-decoration: none;
+}
+
 .logo {
   display: flex;
   align-items: center;
@@ -42,16 +53,21 @@ body {
   font-weight: 600;
 }
 
-.nav a {
+.nav a, .nav-link {
   margin: 0 1rem;
   color: var(--mantine-color-text);
   text-decoration: none;
   transition: color 0.2s ease;
 }
 
-.nav a:hover {
+.nav a:hover, .nav-link:hover {
   color: var(--mantine-color-primary-filled-hover);
 }
+
+.nav-link[data-active] {
+  text-decoration: underline;
+}
+
 
 .loginButton {
   padding: 0.5rem 1rem;
