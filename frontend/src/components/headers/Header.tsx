@@ -9,14 +9,11 @@ import {UserButton} from "@/components/buttons/UserButton";
 import {ThemeSwitcher} from "@/components/buttons/ThemeSwitcher";
 
 const links = [
-  { link: '/about', label: 'Features' },
-  { link: '/pricing', label: 'Pricing' },
-  { link: '/learn', label: 'Learn' },
-  { link: '/community', label: 'Community' },
+  { link: '/company', label: 'Company' },
 ];
 
 export function Header() {
-  const [active, setActive] = useState(links[0].link);
+  const [active, setActive] = useState("");
 
   const items = links.map((link) => (
     <a
@@ -27,6 +24,7 @@ export function Header() {
       onClick={(event) => {
         event.preventDefault();
         setActive(link.link);
+        window.location.href = link.link;
       }}
     >
       {link.label}
