@@ -1,7 +1,7 @@
 "use client";
 
 import { UserCardImage } from "@/components/containers/UserCardImage";
-import {Accordion, Container, Grid} from "@mantine/core";
+import {Accordion, Grid} from "@mantine/core";
 import { UpdateUserDataForm } from "@/components/forms/UpdateUserDataForm";
 import { UpdatePasswordForm } from "@/components/forms/UpdatePasswordForm";
 import { useAuth } from "@/context/AuthContext";
@@ -14,7 +14,7 @@ const ProfilePage = () => {
   }
 
   return (
-    <Container>
+    <div className="main-context">
       <Grid>
         <Grid.Col span={{ base: 12, md: 4 }}>
           <UserCardImage />
@@ -40,7 +40,7 @@ const ProfilePage = () => {
           </Accordion>
         </Grid.Col>
       </Grid>
-    </Container>
+    </div>
   );
 };
 

@@ -1,14 +1,13 @@
 "use client";
 
-import {CompanyInfoBox} from "../../../components/containers/CompanyInfoBox";
+import {CompanyInfoBox} from "@/components/containers/CompanyInfoBox";
 
 const CompanyPage = () => {
   return (
-    <div>
+    <div className="main-context">
       <CompanyInfoBox />
     </div>
   )
-
 }
 
 export default CompanyPage;

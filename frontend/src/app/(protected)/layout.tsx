@@ -6,10 +6,12 @@ import { ReactNode } from "react";
 
 function ProtectedLayout({ children }: { children: ReactNode }) {
   return (
-    <>
-      <Header />
-      {children}
-    </>
+    <div className="container">
+      <main className="main">
+        <Header />
+        {children}
+      </main>
+    </div>
   );
 }
 

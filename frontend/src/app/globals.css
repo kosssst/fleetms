@@ -206,3 +206,7 @@ body {
   margin: 0 0.75rem;
   text-decoration: none;
 }
+
+.main-context {
+    margin-top: 2rem;
+}
