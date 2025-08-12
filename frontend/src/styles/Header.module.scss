@@ -37,3 +37,11 @@
   background-color: var(--mantine-color-blue-filled);
   color: var(--mantine-color-white);
 }
+
+.profileLink {
+  display: block;
+  line-height: 1;
+  border-radius: var(--mantine-radius-sm);
+  text-decoration: none;
+  color: light-dark(var(--mantine-color-gray-7), var(--mantine-color-dark-0));
+}

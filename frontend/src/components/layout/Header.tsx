@@ -43,7 +43,7 @@ export function Header({ children }: { children: ReactNode }) {
           </Group>
           <Group>
             <ThemeSwitcher />
-            <Link href="/profile" className={classes.link}>
+            <Link href="/profile" className={classes.profileLink}>
               <UserButton />
             </Link>
           </Group>
