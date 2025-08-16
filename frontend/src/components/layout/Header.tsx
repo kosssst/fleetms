@@ -8,6 +8,7 @@ import {ThemeSwitcher} from "@/components/buttons/ThemeSwitcher";
 import {useAuth} from "@/context/AuthContext";
 import { navLinks } from '@/constants/navLinks';
 import { usePathname } from 'next/navigation';
+import classes from '@/styles/Header.module.scss'
 
 export function Header() {
   const { user, loading } = useAuth();
@@ -27,27 +28,27 @@ export function Header() {
   ));
 
   return (
-    <header className="header">
-      <Container fluid px="md" className="header-inner">
+    <header className={classes.header}>
+      <Container fluid px="md" className={classes.inner}>
         <Link href="/" style={{ textDecoration: 'none', color: 'inherit' }}>
-          <Group justify="center" className="logo">
+          <Group justify="center" className={classes.logo}>
             <Image src="/logo.svg" alt="Project Logo" h={30} w={30}/>
-            <Title>{PROJECT_NAME}</Title>
+            <Title size="h2">{PROJECT_NAME}</Title>
           </Group>
         </Link>
 
-        <Group gap={5} visibleFrom="xs" className="nav">
+        <Group gap={5} visibleFrom="xs" className={classes.nav}>
           {items}
         </Group>
         <Group>
           <ThemeSwitcher />
           {!loading &&
             (user ? (
-              <Link href="/profile" className="profileLink">
+              <Link href="/profile" className={classes.profileLink}>
                 <UserButton />
               </Link>
             ) : (
-              <Button component={Link} href="/auth" className="loginButton" variant="outline">
+              <Button component={Link} href="/auth" className={classes.loginButton} variant="outline">
                 Log in
               </Button>
             ))}
