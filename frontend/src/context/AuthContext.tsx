@@ -10,7 +10,7 @@ interface AuthContextType {
   user: User | null;
   setUser: Dispatch<SetStateAction<User | null>>;
   loading: boolean;
-  login: (values: LoginFormValues) => Promise<void>;
+  login: (values: LoginFormValues, redirectUrl?: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -39,11 +39,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     loadUser();
   }, []);
 
-  const login = async (values: LoginFormValues) => {
+  const login = async (values: LoginFormValues, redirectUrl?: string) => {
     const { token, ...userData } = await loginService(values);
     Cookies.set('token', token);
     localStorage.setItem('user', JSON.stringify(userData));
     setUser(userData);
+    window.location.href = redirectUrl || '/';
   };
 
   return (
