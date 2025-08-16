@@ -65,7 +65,7 @@ body {
   transition: background-color 0.2s ease;
 }
 
-.nav a:hover, .nav-link:hover {
+.nav a:not([data-active]):hover, .nav-link:not([data-active]):hover {
   background-color: light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-6));
 }
 

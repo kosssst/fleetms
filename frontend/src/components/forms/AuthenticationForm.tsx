@@ -14,7 +14,7 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { useToggle } from '@mantine/hooks';
-import { useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { register } from '@/services/auth.service';
 import { RegisterFormValues } from '@/types/auth.types';
 import classes from './AuthenticationForm.module.scss';
@@ -23,7 +23,7 @@ import { useAuth } from '@/context/AuthContext';
 
 export function AuthenticationForm(props: PaperProps) {
     const [type, toggle] = useToggle(['login', 'register']);
-    const router = useRouter();
+    const searchParams = useSearchParams();
     const { login } = useAuth();
     const form = useForm({
         initialValues: {
@@ -60,8 +60,8 @@ export function AuthenticationForm(props: PaperProps) {
         if (type === 'login') {
             const { email, password } = form.values;
             try {
-                await login({ email, password });
-                router.push('/');
+                const redirectUrl = searchParams.get('redirect');
+                await login({ email, password }, redirectUrl || undefined);
             } catch (error) {
                 console.error(error);
                 alert('Something went wrong');
