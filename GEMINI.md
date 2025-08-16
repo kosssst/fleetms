@@ -134,3 +134,4 @@ Do not override any .svg files unless it is specified in the task.
 
 Do not start, stop or restart any service.
 Run `npm run build` after completing request to verify that the code builds successfully.
+Do not commit or push any changes.
