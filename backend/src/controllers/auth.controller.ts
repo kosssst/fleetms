@@ -17,6 +17,12 @@ const generateRefreshToken = (id: string) => {
   });
 };
 
+const generateMobileToken = (id: string) => {
+  return jwt.sign({ id }, process.env.JWT_SECRET as string, {
+    expiresIn: '365d',
+  });
+};
+
 export const register = asyncHandler(async (req: Request, res: Response) => {
   const { firstName, lastName, email, password } = req.body;
 
@@ -86,6 +92,28 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
       email: user.email,
       role: user.role,
       token: accessToken,
+    });
+  } else {
+    res.status(401);
+    throw new Error('Invalid email or password');
+  }
+});
+
+export const mobileLogin = asyncHandler(async (req: Request, res: Response) => {
+  const { email, password } = req.body;
+
+  const user = await UserModel.findOne({ email }).select('+password') as User;
+
+  if (user && (await user.matchPassword(password))) {
+    const mobileToken = generateMobileToken(user._id.toString());
+
+    res.json({
+      _id: user._id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      role: user.role,
+      token: mobileToken,
     });
   } else {
     res.status(401);
