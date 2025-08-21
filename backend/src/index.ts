@@ -2,6 +2,7 @@ import express, { Express, Request, Response } from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
+import morgan from 'morgan';
 import { connectDB } from './db/mongoose';
 import { notFound, errorHandler } from './middleware/error.middleware';
 
@@ -15,6 +16,10 @@ connectDB();
 
 const app: Express = express();
 const port = process.env.PORT || 8000;
+
+if (process.env.NODE_ENV === 'development') {
+  app.use(morgan('dev'));
+}
 
 app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:3000',

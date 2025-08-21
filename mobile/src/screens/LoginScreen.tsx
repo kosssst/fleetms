@@ -18,7 +18,7 @@ const LoginScreen = () => {
 
   const handleLogin = async () => {
     try {
-      const response = await axios.post(`${API_URL}/auth/login`, { email, password });
+      const response = await axios.post(`${API_URL}/auth/login`, { email, password, client: 'mobile' });
       await login(response.data.token);
     } catch (err) {
       setError('Invalid email or password');

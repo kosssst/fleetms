@@ -35,7 +35,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchUser = async () => {
     try {
-      const response = await axios.get(`${API_URL}/users/me`);
+      const response = await axios.get(`${API_URL}/auth/me`);
       setUser(response.data);
     } catch (error) {
       console.error('Failed to fetch user', error);

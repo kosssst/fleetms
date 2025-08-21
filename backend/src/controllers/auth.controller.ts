@@ -68,31 +68,48 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const login = asyncHandler(async (req: Request, res: Response) => {
-  const { email, password } = req.body;
+  const { email, password, client } = req.body;
 
   const user = await UserModel.findOne({ email }).select('+password') as User;
 
   if (user && (await user.matchPassword(password))) {
-    const accessToken = generateToken(user._id.toString());
-    const refreshToken = generateRefreshToken(user._id.toString());
+    if (client === 'mobile') {
+      // For mobile clients, issue a long-lived token and no refresh token
+      const accessToken = jwt.sign({ id: user._id.toString() }, process.env.JWT_SECRET as string, {
+        expiresIn: '10y', // Effectively non-expiring for the app's lifecycle
+      });
 
-    user.refreshToken = refreshToken;
-    await user.save();
+      res.json({
+        _id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        role: user.role,
+        token: accessToken,
+      });
+    } else {
+      // For web clients, use the existing token and refresh token logic
+      const accessToken = generateToken(user._id.toString());
+      const refreshToken = generateRefreshToken(user._id.toString());
 
-    res.cookie('refreshToken', refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
+      user.refreshToken = refreshToken;
+      await user.save();
 
-    res.json({
-      _id: user._id,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      email: user.email,
-      role: user.role,
-      token: accessToken,
-    });
+      res.cookie('refreshToken', refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+      });
+
+      res.json({
+        _id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        role: user.role,
+        token: accessToken,
+      });
+    }
   } else {
     res.status(401);
     throw new Error('Invalid email or password');
