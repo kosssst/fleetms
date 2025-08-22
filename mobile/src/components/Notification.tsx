@@ -1,7 +1,6 @@
-
 import React from 'react';
 import { View, Text, StyleSheet, Modal } from 'react-native';
-import { Button } from 'react-native-paper';
+import { Button, useTheme } from 'react-native-paper';
 
 interface NotificationProps {
   message: string | null;
@@ -9,6 +8,8 @@ interface NotificationProps {
 }
 
 const Notification: React.FC<NotificationProps> = ({ message, onDismiss }) => {
+  const theme = useTheme();
+
   if (!message) {
     return null;
   }
@@ -21,8 +22,8 @@ const Notification: React.FC<NotificationProps> = ({ message, onDismiss }) => {
       onRequestClose={onDismiss}
     >
       <View style={styles.overlay}>
-        <View style={styles.container}>
-          <Text style={styles.message}>{message}</Text>
+        <View style={[styles.container, { backgroundColor: theme.colors.surface }]}>
+          <Text style={[styles.message, { color: theme.colors.onSurface }]}>{message}</Text>
           <Button onPress={onDismiss}>Close</Button>
         </View>
       </View>
@@ -38,7 +39,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   container: {
-    backgroundColor: 'white',
     padding: 20,
     borderRadius: 8,
     alignItems: 'center',

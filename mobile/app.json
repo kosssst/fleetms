@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
@@ -20,10 +20,23 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "permissions": [
+        "android.permission.BLUETOOTH",
+        "android.permission.BLUETOOTH_ADMIN",
+        "android.permission.BLUETOOTH_CONNECT",
+        "android.permission.BLUETOOTH_SCAN"
+      ],
+      "package": "com.fleetms.mobile"
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "plugins": ["./withAndroidCompileSdkVersion.js"],
+    "extra": {
+      "eas": {
+        "projectId": "fe61f156-59ea-45d1-ac9f-cabeba7efd36"
+      }
     }
   }
 }

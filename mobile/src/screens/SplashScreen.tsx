@@ -1,18 +1,16 @@
 
 import React from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
-import { PaperProvider } from 'react-native-paper';
-import { theme } from '../styles/theme';
+import { useTheme } from 'react-native-paper';
 
 
 
 export const SplashScreen = () => {
+  const theme = useTheme();
   return (
-    <PaperProvider theme={theme}>
-      <View style={styles.container}>
-        <ActivityIndicator size="large" color={theme.colors.primary} />
-      </View>
-    </PaperProvider>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <ActivityIndicator size="large" color={theme.colors.primary} />
+    </View>
   );
 };
 

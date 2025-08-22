@@ -2,3 +2,4 @@
 db_backups/
 .idea/
 dist/
+*.apk

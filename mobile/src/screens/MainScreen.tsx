@@ -1,30 +1,27 @@
-
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { Text, Button, PaperProvider, Card, Title, Paragraph } from 'react-native-paper';
-import { theme } from '../styles/theme';
+import { Button, Card, Title, Paragraph, useTheme } from 'react-native-paper';
 import { useAuth } from '../contexts/AuthContext';
-
-
+import ConnectionStatus from '../components/ConnectionStatus';
 
 const MainScreen = () => {
   const { user, logout } = useAuth();
+  const theme = useTheme();
 
   return (
-    <PaperProvider theme={theme}>
-      <View style={styles.container}>
-        <Card>
-          <Card.Content>
-            <Title>Welcome, {user?.firstName}!</Title>
-            <Paragraph>Email: {user?.email}</Paragraph>
-            <Paragraph>Role: {user?.role}</Paragraph>
-          </Card.Content>
-        </Card>
-        <Button mode="contained" onPress={logout} style={styles.button}>
-          Logout
-        </Button>
-      </View>
-    </PaperProvider>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <ConnectionStatus />
+      <Card style={{ backgroundColor: theme.colors.surface }}>
+        <Card.Content>
+          <Title>Welcome, {user?.firstName}!</Title>
+          <Paragraph>Email: {user?.email}</Paragraph>
+          <Paragraph>Role: {user?.role}</Paragraph>
+        </Card.Content>
+      </Card>
+      <Button mode="contained" onPress={logout} style={styles.button}>
+        Logout
+      </Button>
+    </View>
   );
 };
 
