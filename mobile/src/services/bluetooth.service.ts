@@ -11,7 +11,9 @@ type LogCallback = (message: string) => void;
 class BluetoothService {
   private activeDevice: BluetoothDevice | null = null;
   private isSearching = false;
+  private isPolling = false;
   private initializeCommands = ['ATZ', 'ATE0', 'ATL0', 'ATSP0'];
+  private parameters = ["0104", "0105", "010C", "010D", "010F"];
 
   async requestPermissions(onLog: LogCallback): Promise<boolean> {
     if (Platform.OS === 'ios') {
@@ -68,6 +70,7 @@ class BluetoothService {
             onDeviceFound(this.activeDevice);
             onStatusChange('connected');
             this.isSearching = false;
+            this.startPolling(this.activeDevice, onLog);
             return;
           }
         } catch (error: any) {
@@ -131,6 +134,7 @@ class BluetoothService {
 
   async stopSearch(onStatusChange: StatusCallback, onLog: LogCallback) {
     this.isSearching = false;
+    this.stopPolling();
     onLog('Search stopped by user.');
     try {
         if (this.activeDevice) {
@@ -156,6 +160,41 @@ class BluetoothService {
     } catch (error: any) {
       onLog(`Initialization error: ${error.message}`);
       throw error;
+    }
+  }
+
+  startPolling(device: BluetoothDevice, onLog: LogCallback) {
+    this.isPolling = true;
+    this.pollData(device, onLog);
+  }
+
+  stopPolling() {
+    this.isPolling = false;
+  }
+
+  async pollData(device: BluetoothDevice, onLog: LogCallback) {
+    while (this.isPolling) {
+      try {
+        let concatenatedResponses = '';
+        for (const param of this.parameters) {
+          if (!this.isPolling) break;
+
+          onLog(`Polling with param: ${param}`);
+          await device.write(`${param}\r`);
+          const response = await this.readUntilDelimiter(device, onLog);
+          concatenatedResponses += response.trim() + ' ';
+        }
+
+        if (concatenatedResponses) {
+          onLog(`Concatenated responses: ${concatenatedResponses.trim()}`);
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      } catch (error: any) {
+        onLog(`Error during polling: ${error.message}`);
+        this.stopPolling();
+        // Optionally, trigger a disconnect status update here
+      }
     }
   }
 }
