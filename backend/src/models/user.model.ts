@@ -27,13 +27,14 @@ const userSchema: Schema = new Schema({
   },
   role: {
     type: String,
-    enum: ['user', 'company_owner', 'admin'],
+    enum: ['user', 'company_owner', 'admin', 'logist', 'driver'],
     default: 'user'
   },
   resetPasswordToken: String,
   resetPasswordExpire: Date,
   refreshToken: String,
   companyId: { type: Schema.Types.ObjectId, ref: 'Company' },
+  vehicleId: { type: Schema.Types.ObjectId, ref: 'Vehicle' },
 }, {
   timestamps: true,
   toJSON: {
@@ -49,7 +50,7 @@ const userSchema: Schema = new Schema({
 });
 
 userSchema.pre<User>('save', async function (next) {
-  if (!this.isModified('password')) {
+  if (!this.isModified('password') || !this.password) {
     return next();
   }
   const salt = crypto.randomBytes(16).toString('hex');
