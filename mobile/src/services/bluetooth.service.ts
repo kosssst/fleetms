@@ -11,6 +11,7 @@ type LogCallback = (message: string) => void;
 class BluetoothService {
   private activeDevice: BluetoothDevice | null = null;
   private isSearching = false;
+  private initializeCommands = ['ATZ', 'ATE0', 'ATL0', 'ATSP0'];
 
   async requestPermissions(onLog: LogCallback): Promise<boolean> {
     if (Platform.OS === 'ios') {
@@ -63,6 +64,7 @@ class BluetoothService {
           if (isElmDevice) {
             onLog(`ELM327 confirmed for device: ${device.name}. Connection established.`);
             this.activeDevice = device;
+            await this.initializeDevice(this.activeDevice, onLog);
             onDeviceFound(this.activeDevice);
             onStatusChange('connected');
             this.isSearching = false;
@@ -139,6 +141,21 @@ class BluetoothService {
     } finally {
       this.activeDevice = null;
       onStatusChange('disconnected');
+    }
+  }
+
+  async initializeDevice(device: BluetoothDevice, onLog: LogCallback): Promise<void> {
+    try {
+      for (const command of this.initializeCommands) {
+        onLog(`Sending command: ${command}`);
+        await device.write(`${command}\r`);
+        const response = await this.readUntilDelimiter(device, onLog);
+        onLog(`Response: ${response.trim()}`);
+      }
+      onLog('Device initialization complete.');
+    } catch (error: any) {
+      onLog(`Initialization error: ${error.message}`);
+      throw error;
     }
   }
 }
