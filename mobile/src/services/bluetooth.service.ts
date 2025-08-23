@@ -98,7 +98,6 @@ class BluetoothService {
       }, timeout);
 
       const subscription = device.onDataReceived(data => {
-        onLog(`Received data: ${data.data}`);
         clearTimeout(timeoutId);
         subscription.remove();
         resolve(data.data);
@@ -182,7 +181,8 @@ class BluetoothService {
           onLog(`Polling with param: ${param}`);
           await device.write(`${param}\r`);
           const response = await this.readUntilDelimiter(device, onLog);
-          concatenatedResponses += response.trim() + ' ';
+          const cleanedResponse = response.trim().split(' ').slice(2).join('');
+          concatenatedResponses += cleanedResponse;
         }
 
         if (concatenatedResponses) {
