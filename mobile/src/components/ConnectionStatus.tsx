@@ -9,18 +9,18 @@ const ConnectionStatus: React.FC = () => {
 
   const isSearching = connectionStatus === 'searching';
 
-  const getStatusColor = () => {
+  const renderStatusIndicator = () => {
     switch (connectionStatus) {
       case 'connected':
-        return theme.colors.primary;
+        return <View style={[styles.circle, { backgroundColor: 'green' }]} />;
       case 'searching':
-        return theme.colors.secondary;
+        return <View style={[styles.circle, { backgroundColor: 'yellow' }]} />;
       case 'disconnected':
-        return theme.colors.error;
+        return <View style={[styles.circle, { backgroundColor: theme.colors.error }]} />;
       case 'error':
-        return theme.colors.error;
+        return <View style={[styles.circle, { backgroundColor: theme.colors.error }]} />;
       default:
-        return theme.colors.onSurfaceDisabled;
+        return <View style={[styles.circle, { backgroundColor: theme.colors.onSurfaceDisabled }]} />;
     }
   };
 
@@ -28,8 +28,8 @@ const ConnectionStatus: React.FC = () => {
     <Card style={{ margin: 16, backgroundColor: theme.colors.surface }}>
       <Card.Content>
         <View style={styles.statusContainer}>
-          <View style={[styles.circle, { backgroundColor: getStatusColor() }]} />
-          <Title style={{ color: theme.colors.onSurface }}>
+          {renderStatusIndicator()}
+          <Title style={{ color: theme.colors.onSurface, marginLeft: 12 }}>
             Status: {connectionStatus}
           </Title>
         </View>
@@ -75,7 +75,6 @@ const styles = StyleSheet.create({
     width: 15,
     height: 15,
     borderRadius: 7.5,
-    marginRight: 12,
   },
   buttonContainer: {
     flexDirection: 'row',
