@@ -1,6 +1,6 @@
 "use client";
 
-import classes from './CompanyInfoBox.module.scss';
+import classes from './CompanyPageBox.module.scss';
 import { Button, Paper, Text } from '@mantine/core';
 import { useState } from "react";
 import { CreateCompanyForm } from "@/components/forms/CreateCompanyForm";
@@ -9,7 +9,7 @@ import { Company } from '@/types/company.types';
 import { Loading } from "@/components/common/Loading";
 import { CompanyDetailsModule } from './CompanyDetails.module';
 
-export function CompanyInfoBox() {
+export function CompanyPageBox() {
   const { company, loading, error, setCompany } = useCompany();
   const [showCreateForm, setShowCreateForm] = useState(false);
 
