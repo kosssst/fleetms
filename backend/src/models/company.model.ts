@@ -1,13 +1,21 @@
 import { Schema, model, Document, Types } from 'mongoose';
 
-interface ICompany extends Document {
+export interface ICompany extends Document {
   name: string;
+  address: string;
+  phone: string;
   members: Types.ObjectId[];
+  vehicles: Types.ObjectId[];
+  owner: Types.ObjectId;
 }
 
 const CompanySchema = new Schema<ICompany>({
   name: { type: String, required: true },
-  members: [{ type: Schema.Types.ObjectId, ref: 'User' }]
+  address: { type: String, required: true },
+  phone: { type: String, required: true },
+  members: [{ type: Schema.Types.ObjectId, ref: 'User' }],
+  vehicles: [{ type: Schema.Types.ObjectId, ref: 'Vehicle' }],
+  owner: { type: Schema.Types.ObjectId, ref: 'User', required: true }
 }, {
   timestamps: true,
   toJSON: {

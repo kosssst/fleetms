@@ -43,7 +43,7 @@ const AssignDriverForm: React.FC<AssignDriverFormProps> = ({ vehicle, onSubmit, 
   return (
     <div className="modal modal-open">
       <div className="modal-box">
-        <h3 className="font-bold text-lg">Assign Driver for {vehicle.manufacturer} {vehicle.model}</h3>
+        <h3 className="font-bold text-lg">Assign Driver for {vehicle.manufacturer} {vehicle.modelName}</h3>
         <form onSubmit={handleSubmit}>
           <div className="form-control">
             <label className="label">

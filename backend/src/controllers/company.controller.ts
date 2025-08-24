@@ -9,7 +9,7 @@ interface RequestWithUser extends Request {
 }
 
 export const createCompany = asyncHandler(async (req: RequestWithUser, res: Response) => {
-  const { name } = req.body;
+  const { name, address, phone } = req.body;
   const user = req.user;
 
   if (!user) {
@@ -19,7 +19,10 @@ export const createCompany = asyncHandler(async (req: RequestWithUser, res: Resp
 
   const company = await CompanyModel.create({
     name,
-    members: [user._id]
+    address,
+    phone,
+    members: [user._id],
+    owner: user._id
   });
 
   await UserModel.findByIdAndUpdate(user._id, {
@@ -38,7 +41,7 @@ export const getCompany = asyncHandler(async (req: RequestWithUser, res: Respons
     throw new Error('User is not associated with a company');
   }
 
-  const company = await CompanyModel.findById(user.companyId);
+  const company = await CompanyModel.findById(user.companyId).populate('owner', 'firstName lastName');
 
   if (company) {
     res.json(company.toObject());

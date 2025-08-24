@@ -13,6 +13,8 @@ export function CreateCompanyForm({ onCompanyCreated }: CreateCompanyFormProps) 
   const form = useForm({
     initialValues: {
       name: '',
+      address: '',
+      phone: '',
     },
     validate: {
       name: (val) => {
@@ -21,12 +23,14 @@ export function CreateCompanyForm({ onCompanyCreated }: CreateCompanyFormProps) 
         if (!/^[a-zA-Z0-9 ]+$/.test(val)) return 'Company name should only include letters, numbers, and spaces';
         return null;
       },
+      address: (val) => (val.length < 5 ? 'Address should include at least 5 characters' : null),
+      phone: (val) => (/^\+?[1-9]\d{1,14}$/.test(val) ? null : 'Invalid phone number'),
     },
   });
 
   async function handleSubmit() {
     try {
-      const newCompany = await createCompany(form.values.name);
+      const newCompany = await createCompany(form.values);
       localStorage.setItem('company_id', newCompany._id);
       onCompanyCreated(newCompany);
     } catch (error) {
@@ -46,6 +50,20 @@ export function CreateCompanyForm({ onCompanyCreated }: CreateCompanyFormProps) 
             placeholder="Your company name"
             radius="md"
             {...form.getInputProps('name')}
+          />
+          <TextInput
+            required
+            label="Address"
+            placeholder="Company address"
+            radius="md"
+            {...form.getInputProps('address')}
+          />
+          <TextInput
+            required
+            label="Phone"
+            placeholder="Company phone number"
+            radius="md"
+            {...form.getInputProps('phone')}
           />
           <Button type="submit">Create</Button>
         </Stack>

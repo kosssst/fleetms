@@ -96,7 +96,7 @@ export const VehiclesTable = () => {
             {vehicles.map((vehicle) => (
               <Table.Tr key={vehicle.id}>
                 <Table.Td>{vehicle.manufacturer}</Table.Td>
-                <Table.Td>{vehicle.model}</Table.Td>
+                <Table.Td>{vehicle.modelName}</Table.Td>
                 <Table.Td>{vehicle.number}</Table.Td>
                 <Table.Td>{vehicle.driverId ? `${(vehicle.driverId as User).firstName} ${(vehicle.driverId as User).lastName}` : 'Unassigned'}</Table.Td>
                 {canManage && (

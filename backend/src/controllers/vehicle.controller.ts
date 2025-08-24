@@ -4,6 +4,7 @@ import asyncHandler from 'express-async-handler';
 import { VehicleModel } from '../models/vehicle.model';
 import { UserModel } from '../models/user.model';
 import { User } from '../types/user.types';
+import { CompanyModel } from '../models/company.model';
 
 interface RequestWithUser extends Request {
   user?: User;
@@ -29,6 +30,10 @@ export const createVehicle = asyncHandler(async (req: RequestWithUser, res: Resp
     number,
     engineVolume,
     companyId: user.companyId
+  });
+
+  await CompanyModel.findByIdAndUpdate(user.companyId, {
+    $push: { vehicles: vehicle._id }
   });
 
   res.status(201).json(vehicle.toObject());
@@ -96,6 +101,10 @@ export const deleteVehicle = asyncHandler(async (req: RequestWithUser, res: Resp
     res.status(404);
     throw new Error('Vehicle not found');
   }
+
+  await CompanyModel.findByIdAndUpdate(user.companyId, {
+    $pull: { vehicles: vehicle._id }
+  });
 
   res.status(204).send();
 });

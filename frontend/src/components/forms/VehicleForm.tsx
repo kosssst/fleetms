@@ -12,14 +12,14 @@ interface VehicleFormProps {
 
 const VehicleForm: React.FC<VehicleFormProps> = ({ vehicle, onSubmit, onClose }) => {
   const [manufacturer, setManufacturer] = useState('');
-  const [model, setModel] = useState('');
+  const [modelName, setModelName] = useState('');
   const [number, setNumber] = useState('');
   const [engineVolume, setEngineVolume] = useState(0);
 
   useEffect(() => {
     if (vehicle) {
       setManufacturer(vehicle.manufacturer);
-      setModel(vehicle.model);
+      setModelName(vehicle.modelName);
       setNumber(vehicle.number);
       setEngineVolume(vehicle.engineVolume);
     }
@@ -27,7 +27,7 @@ const VehicleForm: React.FC<VehicleFormProps> = ({ vehicle, onSubmit, onClose })
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit({ manufacturer, model, number, engineVolume });
+    onSubmit({ manufacturer, modelName, number, engineVolume });
   };
 
   return (
@@ -54,8 +54,8 @@ const VehicleForm: React.FC<VehicleFormProps> = ({ vehicle, onSubmit, onClose })
             <input
               type="text"
               className="input input-bordered"
-              value={model}
-              onChange={(e) => setModel(e.target.value)}
+              value={modelName}
+              onChange={(e) => setModelName(e.target.value)}
               required
             />
           </div>
