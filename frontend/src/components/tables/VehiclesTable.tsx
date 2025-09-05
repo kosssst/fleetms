@@ -8,13 +8,15 @@ import { useAuth } from '@/context/AuthContext';
 import { User } from '@/types/user.types';
 import VehicleForm from '@/components/forms/VehicleForm';
 import AssignDriverForm from '@/components/forms/AssignDriverForm';
-import { Button, Table, ScrollArea } from '@mantine/core';
+import { Button, Table, ScrollArea, Modal, Group, Text } from '@mantine/core';
 
 export const VehiclesTable = () => {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [isVehicleFormOpen, setIsVehicleFormOpen] = useState(false);
   const [isAssignDriverFormOpen, setIsAssignDriverFormOpen] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [vehicleToDelete, setVehicleToDelete] = useState<string | null>(null);
   const { user } = useAuth();
 
   useEffect(() => {
@@ -36,7 +38,16 @@ export const VehiclesTable = () => {
       setVehicles(vehicles.filter((v) => v.id !== id));
     } catch (error) {
       console.error('Failed to delete vehicle', error);
+      alert('Failed to delete vehicle');
+    } finally {
+      setIsDeleteModalOpen(false);
+      setVehicleToDelete(null);
     }
+  };
+
+  const openDeleteModal = (id: string) => {
+    setVehicleToDelete(id);
+    setIsDeleteModalOpen(true);
   };
 
   const handleVehicleFormSubmit = async (vehicleData: Omit<Vehicle, 'id' | 'companyId' | 'driverId' | 'createdAt' | 'updatedAt'>) => {
@@ -117,7 +128,7 @@ export const VehiclesTable = () => {
                       color="red"
                       size="xs"
                       mr="xs"
-                      onClick={() => handleDelete(vehicle.id)}
+                      onClick={() => openDeleteModal(vehicle.id)}
                     >
                       Delete
                     </Button>
@@ -159,6 +170,37 @@ export const VehiclesTable = () => {
           }}
         />
       )}
+      <Modal
+        opened={isDeleteModalOpen}
+        onClose={() => {
+          setIsDeleteModalOpen(false);
+          setVehicleToDelete(null);
+        }}
+        title="Confirm Deletion"
+      >
+        <Text>Are you sure you want to delete this vehicle?</Text>
+        <Group justify="flex-end" mt="md">
+          <Button
+            variant="default"
+            onClick={() => {
+              setIsDeleteModalOpen(false);
+              setVehicleToDelete(null);
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            color="red"
+            onClick={() => {
+              if (vehicleToDelete) {
+                handleDelete(vehicleToDelete);
+              }
+            }}
+          >
+            Delete
+          </Button>
+        </Group>
+      </Modal>
     </div>
   );
 };

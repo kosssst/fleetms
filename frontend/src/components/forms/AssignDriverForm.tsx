@@ -6,6 +6,8 @@ import { Vehicle } from '@/types/vehicle.types';
 import { User } from '@/types/user.types';
 import { getCompanyUsers } from '@/services/company.service';
 import { useAuth } from '@/context/AuthContext';
+import { Modal, Select, Button, Group } from '@mantine/core';
+import { useForm } from '@mantine/form';
 
 interface AssignDriverFormProps {
   vehicle: Vehicle;
@@ -15,8 +17,16 @@ interface AssignDriverFormProps {
 
 const AssignDriverForm: React.FC<AssignDriverFormProps> = ({ vehicle, onSubmit, onClose }) => {
   const [users, setUsers] = useState<User[]>([]);
-  const [selectedDriver, setSelectedDriver] = useState<string>('');
   const { user } = useAuth();
+
+  const form = useForm({
+    initialValues: {
+      driverId: '',
+    },
+    validate: {
+      driverId: (value) => (value ? null : 'You must select a driver'),
+    },
+  });
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -33,47 +43,33 @@ const AssignDriverForm: React.FC<AssignDriverFormProps> = ({ vehicle, onSubmit, 
     fetchUsers();
   }, [user?.companyId]);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (selectedDriver) {
-      onSubmit(vehicle.id, selectedDriver);
-    }
+  const handleSubmit = (values: typeof form.values) => {
+    onSubmit(vehicle.id, values.driverId);
   };
 
+  const userOptions = users.map((user) => ({
+    value: user._id,
+    label: `${user.firstName} ${user.lastName}`,
+  }));
+
   return (
-    <div className="modal modal-open">
-      <div className="modal-box">
-        <h3 className="font-bold text-lg">Assign Driver for {vehicle.manufacturer} {vehicle.modelName}</h3>
-        <form onSubmit={handleSubmit}>
-          <div className="form-control">
-            <label className="label">
-              <span className="label-text">Driver</span>
-            </label>
-            <select
-              className="select select-bordered"
-              value={selectedDriver}
-              onChange={(e) => setSelectedDriver(e.target.value)}
-              required
-            >
-              <option value="" disabled>Select a driver</option>
-              {users.map((user) => (
-                <option key={user._id} value={user._id}>
-                  {user.firstName} {user.lastName}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="modal-action">
-            <button type="submit" className="btn btn-primary">
-              Assign
-            </button>
-            <button type="button" className="btn" onClick={onClose}>
-              Cancel
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <Modal opened={true} onClose={onClose} title={`Assign Driver for ${vehicle.manufacturer} ${vehicle.modelName}`}>
+      <form onSubmit={form.onSubmit(handleSubmit)}>
+        <Select
+          label="Driver"
+          placeholder="Select a driver"
+          data={userOptions}
+          {...form.getInputProps('driverId')}
+          required
+        />
+        <Group justify="flex-end" mt="lg">
+          <Button variant="default" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit">Assign</Button>
+        </Group>
+      </form>
+    </Modal>
   );
 };
 
