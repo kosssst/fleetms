@@ -4,6 +4,7 @@ import { UsersTable } from "@/components/tables/UsersTable";
 import { VehiclesTable } from "@/components/tables/VehiclesTable";
 import {IconUsers, IconTruck, IconInfoCircle} from "@tabler/icons-react";
 import {CompanyInfoModule} from "@/components/containers/CompanyInfo.module";
+import classes from "./CompanyDetails.module.scss"
 
 interface CompanyDetailsProps {
   company: Company;
@@ -11,7 +12,7 @@ interface CompanyDetailsProps {
 
 export const CompanyDetailsModule = ({ company }: CompanyDetailsProps) => {
   return (
-    <Tabs defaultValue="users">
+    <Tabs defaultValue="companyInfo">
       <Tabs.List>
         <Tabs.Tab value="companyInfo" leftSection={<IconInfoCircle size={16} />}>
           Company Info
@@ -23,7 +24,7 @@ export const CompanyDetailsModule = ({ company }: CompanyDetailsProps) => {
           Vehicles
         </Tabs.Tab>
       </Tabs.List>
-      <Paper radius="md" p="sm" withBorder>
+      <Paper radius="md" p="sm" withBorder className={classes.paper}>
         <Tabs.Panel value="companyInfo" pt="xs">
           <CompanyInfoModule company={company} />
         </Tabs.Panel>
