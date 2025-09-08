@@ -3,7 +3,7 @@
 import { Button, PasswordInput } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
-import classes from "./UpdatePasswordForm.module.scss";
+import classes from "../../styles/UpdatePasswordForm.module.scss";
 import { updatePassword } from "@/services/user.service";
 
 export const UpdatePasswordForm = () => {

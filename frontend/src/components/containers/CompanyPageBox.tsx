@@ -1,6 +1,6 @@
 "use client";
 
-import classes from './CompanyPageBox.module.scss';
+import classes from '../../styles/CompanyPageBox.module.scss';
 import { Paper } from '@mantine/core';
 import { useCompany } from '@/hooks/useCompany';
 import { Company } from '@/types/company.types';

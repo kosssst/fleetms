@@ -1,7 +1,7 @@
 "use client";
 
 import { Loader } from '@mantine/core';
-import classes from './Loading.module.scss';
+import classes from '../../styles/Loading.module.scss';
 
 export function Loading() {
   return (

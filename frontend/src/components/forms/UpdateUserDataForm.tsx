@@ -3,7 +3,7 @@
 import { Button, TextInput } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
-import classes from "./UpdateUserDataForm.module.scss";
+import classes from "../../styles/UpdateUserDataForm.module.scss";
 import { updateUserData } from "@/services/user.service";
 import { useAuth } from "@/context/AuthContext";
 import {UpdateUserData, User} from "@/types/user.types";

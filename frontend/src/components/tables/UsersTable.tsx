@@ -17,7 +17,7 @@ import { useEffect, useState } from 'react';
 import { IconChevronDown, IconChevronUp, IconSearch, IconSelector } from '@tabler/icons-react';
 import { USER_ROLE_DISPLAY_NAMES } from '@/constants/userRoles';
 import { UserRole } from '@/types/user.types';
-import classes from './UsersTable.module.scss';
+import classes from '../../styles/UsersTable.module.scss';
 
 interface UsersTableProps {
   companyId: string;

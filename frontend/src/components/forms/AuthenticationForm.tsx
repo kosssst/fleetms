@@ -17,7 +17,7 @@ import { useToggle } from '@mantine/hooks';
 import { useSearchParams } from 'next/navigation';
 import { register } from '@/services/auth.service';
 import { RegisterFormValues } from '@/types/auth.types';
-import classes from './AuthenticationForm.module.scss';
+import classes from '../../styles/AuthenticationForm.module.scss';
 import { PROJECT_NAME } from '@/constants/appConfig';
 import { useAuth } from '@/context/AuthContext';
 

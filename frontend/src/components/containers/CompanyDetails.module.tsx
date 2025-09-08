@@ -4,7 +4,7 @@ import { UsersTable } from "@/components/tables/UsersTable";
 import { VehiclesTable } from "@/components/tables/VehiclesTable";
 import {IconUsers, IconTruck, IconInfoCircle} from "@tabler/icons-react";
 import {CompanyInfoModule} from "@/components/containers/CompanyInfo.module";
-import classes from "./CompanyDetails.module.scss"
+import classes from "../../styles/CompanyDetails.module.scss"
 
 interface CompanyDetailsProps {
   company: Company;
