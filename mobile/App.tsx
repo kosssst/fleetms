@@ -5,6 +5,7 @@ import { AuthProvider } from './src/contexts/AuthContext';
 import { BluetoothProvider } from './src/contexts/BluetoothContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import { darkTheme, lightTheme } from './src/styles/theme';
+import { SocketProvider } from './src/contexts/SocketContext';
 
 export default function App() {
   const colorScheme = useColorScheme();
@@ -14,7 +15,9 @@ export default function App() {
     <PaperProvider theme={theme}>
       <AuthProvider>
         <BluetoothProvider>
-          <AppNavigator />
+          <SocketProvider>
+            <AppNavigator />
+          </SocketProvider>
         </BluetoothProvider>
       </AuthProvider>
     </PaperProvider>

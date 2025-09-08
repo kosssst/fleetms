@@ -1,16 +1,18 @@
 import React from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
 import { useBluetooth } from '../contexts/BluetoothContext';
+import { useSocket } from '../contexts/SocketContext';
 import { useTheme, Card, Title, Button, Text } from 'react-native-paper';
 
 const ConnectionStatus: React.FC = () => {
-  const { connectionStatus, logs, startSearch, stopSearch } = useBluetooth();
+  const { connectionStatus: bluetoothStatus, logs: bluetoothLogs, startSearch, stopSearch } = useBluetooth();
+  const { socketStatus, logs: socketLogs } = useSocket();
   const theme = useTheme();
 
-  const isSearching = connectionStatus === 'searching';
+  const isSearching = bluetoothStatus === 'searching';
 
-  const renderStatusIndicator = () => {
-    switch (connectionStatus) {
+  const renderBluetoothStatusIndicator = () => {
+    switch (bluetoothStatus) {
       case 'connected':
         return <View style={[styles.circle, { backgroundColor: 'green' }]} />;
       case 'searching':
@@ -24,20 +26,48 @@ const ConnectionStatus: React.FC = () => {
     }
   };
 
+  const renderSocketStatusIndicator = () => {
+    switch (socketStatus) {
+      case 'connected':
+        return <View style={[styles.circle, { backgroundColor: 'green' }]} />;
+      case 'disconnected':
+        return <View style={[styles.circle, { backgroundColor: theme.colors.error }]} />;
+      case 'error':
+        return <View style={[styles.circle, { backgroundColor: theme.colors.error }]} />;
+      default:
+        return <View style={[styles.circle, { backgroundColor: theme.colors.onSurfaceDisabled }]} />;
+    }
+  };
+
+  const combinedLogs = [...bluetoothLogs, ...socketLogs].sort((a, b) => {
+    const timeA = a.match(/\\\[(.*?)\\\]/)?.[1];
+    const timeB = b.match(/\\\[(.*?)\\\]/)?.[1];
+    if (timeA && timeB) {
+      return new Date(timeA).getTime() - new Date(timeB).getTime();
+    }
+    return 0;
+  });
+
   return (
     <Card style={{ margin: 16, backgroundColor: theme.colors.surface }}>
       <Card.Content>
         <View style={styles.statusContainer}>
-          {renderStatusIndicator()}
+          {renderSocketStatusIndicator()}
           <Title style={{ color: theme.colors.onSurface, marginLeft: 12 }}>
-            Status: {connectionStatus}
+            Socket: {socketStatus}
+          </Title>
+        </View>
+        <View style={styles.statusContainer}>
+          {renderBluetoothStatusIndicator()}
+          <Title style={{ color: theme.colors.onSurface, marginLeft: 12 }}>
+            Bluetooth: {bluetoothStatus}
           </Title>
         </View>
         <View style={styles.buttonContainer}>
           <Button
             mode="contained"
             onPress={startSearch}
-            disabled={isSearching || connectionStatus === 'connected'}
+            disabled={isSearching || bluetoothStatus === 'connected'}
             style={styles.button}
           >
             Start Search
@@ -45,7 +75,7 @@ const ConnectionStatus: React.FC = () => {
           <Button
             mode="outlined"
             onPress={stopSearch}
-            disabled={!isSearching && connectionStatus !== 'connected'}
+            disabled={!isSearching && bluetoothStatus !== 'connected'}
             style={styles.button}
           >
             Stop Search
@@ -53,7 +83,7 @@ const ConnectionStatus: React.FC = () => {
         </View>
         <View style={[styles.logContainer, { borderColor: theme.colors.outline }]}>
           <ScrollView nestedScrollEnabled={true}>
-            {logs.map((log, index) => (
+            {combinedLogs.map((log, index) => (
               <Text key={index} style={[styles.logText, { color: theme.colors.onSurfaceVariant }]}>
                 {log}
               </Text>

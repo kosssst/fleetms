@@ -7,20 +7,20 @@ import MainScreen from '../screens/MainScreen';
 import { SplashScreen } from '../screens/SplashScreen';
 import { useTheme } from 'react-native-paper';
 import { initSocket } from '../services/socket';
+import { useSocket } from '../contexts/SocketContext';
 
 const Stack = createStackNavigator();
 
 const AppNavigator = () => {
   const { user, loading, token, logout } = useAuth();
+  const { addLog, setSocketStatus } = useSocket();
   const paperTheme = useTheme();
 
   useEffect(() => {
     if (token) {
-      initSocket(token, () => {
-        logout();
-      });
+      initSocket(token, logout, addLog, setSocketStatus);
     }
-  }, [token, logout]);
+  }, [token, logout, addLog, setSocketStatus]);
 
 
   const navigationTheme = {

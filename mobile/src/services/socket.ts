@@ -2,7 +2,12 @@ import { API_URL } from '../config/api';
 
 let socket: WebSocket;
 
-export const initSocket = (token: string, onAuthFailure: () => void) => {
+export const initSocket = (
+  token: string,
+  onAuthFailure: () => void,
+  addLog: (message: string) => void,
+  setSocketStatus: (status: 'disconnected' | 'connected' | 'error') => void,
+) => {
   if (socket) {
     socket.close();
   }
@@ -11,23 +16,28 @@ export const initSocket = (token: string, onAuthFailure: () => void) => {
   socket = new WebSocket(`${socketUrl}?token=${token}`);
 
   socket.onopen = () => {
-    console.log('Socket connected');
+    addLog('Socket connected');
+    setSocketStatus('connected');
   };
 
   socket.onclose = (event) => {
-    console.log('Socket disconnected:', event.reason);
+    addLog(`Socket disconnected: ${event.reason}`);
+    setSocketStatus('disconnected');
     if (event.code === 1008) {
       onAuthFailure();
     }
   };
 
   socket.onerror = (error) => {
-    console.error('Socket error:', error);
+    addLog(`Socket error: ${(error as any).message}`);
+    setSocketStatus('error');
   };
 
   socket.onmessage = (event) => {
     if (event.data === 'authenticated') {
-      console.log('Socket authenticated');
+      addLog('Socket authenticated');
+    } else {
+      addLog(`Socket message: ${event.data}`);
     }
   };
 
