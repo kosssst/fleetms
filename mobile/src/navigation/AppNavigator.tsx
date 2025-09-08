@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { useAuth } from '../contexts/AuthContext';
@@ -6,12 +6,22 @@ import LoginScreen from '../screens/LoginScreen';
 import MainScreen from '../screens/MainScreen';
 import { SplashScreen } from '../screens/SplashScreen';
 import { useTheme } from 'react-native-paper';
+import { initSocket } from '../services/socket';
 
 const Stack = createStackNavigator();
 
 const AppNavigator = () => {
-  const { user, loading } = useAuth();
+  const { user, loading, token, logout } = useAuth();
   const paperTheme = useTheme();
+
+  useEffect(() => {
+    if (token) {
+      initSocket(token, () => {
+        logout();
+      });
+    }
+  }, [token, logout]);
+
 
   const navigationTheme = {
     ...(paperTheme.dark ? DarkTheme : DefaultTheme),

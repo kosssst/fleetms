@@ -5,6 +5,7 @@ import cookieParser from 'cookie-parser';
 import morgan from 'morgan';
 import { connectDB } from './db/mongoose';
 import { notFound, errorHandler } from './middleware/error.middleware';
+import { createWebSocketServer } from './websockets/socket';
 
 import authRoutes from './routes/auth.routes';
 import companyRoutes from './routes/company.routes';
@@ -41,6 +42,8 @@ app.get('/', (req: Request, res: Response) => {
 app.use(notFound);
 app.use(errorHandler);
 
-app.listen(port, () => {
+const server = app.listen(port, () => {
   console.log(`⚡️[server]: Server is running at http://localhost:${port}`);
 });
+
+createWebSocketServer(server);
