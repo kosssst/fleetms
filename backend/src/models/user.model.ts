@@ -41,8 +41,6 @@ const userSchema: Schema = new Schema({
     virtuals: true,
     transform: (doc, ret) => {
       const retAny = ret as any;
-      retAny.id = retAny._id;
-      delete retAny._id;
       delete retAny.__v;
       delete retAny.password; // Ensure password hash is never sent
     }

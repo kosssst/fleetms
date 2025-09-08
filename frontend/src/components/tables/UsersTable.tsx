@@ -9,24 +9,28 @@ import {
   Group,
   Center,
   Text,
-  keys
+  keys,
+  Select,
 } from '@mantine/core';
 import { useCompanyUsers } from '@/hooks/useCompanyUsers';
 import { Loading } from '@/components/common/Loading';
 import { useEffect, useState } from 'react';
 import { IconChevronDown, IconChevronUp, IconSearch, IconSelector } from '@tabler/icons-react';
-import { USER_ROLE_DISPLAY_NAMES } from '@/constants/userRoles';
-import { UserRole } from '@/types/user.types';
+import { USER_ROLE_DISPLAY_NAMES, UserRole } from '@/constants/userRoles';
 import classes from '../../styles/UsersTable.module.scss';
+import { useAuth } from '@/context/AuthContext';
+import { updateUserRole } from '@/services/user.service';
 
 interface UsersTableProps {
   companyId: string;
 }
 
 interface RowData {
+  _id: string;
   name: string;
   email: string;
   role: UserRole;
+  isOwner: boolean;
 }
 
 interface ThProps {
@@ -60,7 +64,12 @@ function filterData(data: RowData[], search: string) {
   }
   const query = search.toLowerCase().trim();
   return data.filter((item) =>
-    keys(data[0]).some((key) => item[key].toLowerCase().includes(query))
+    keys(data[0]).some((key) => {
+      if (typeof item[key] === 'string') {
+        return item[key].toLowerCase().includes(query);
+      }
+      return false;
+    })
   );
 }
 
@@ -77,16 +86,21 @@ function sortData(
   return filterData(
     [...data].sort((a, b) => {
       if (payload.reversed) {
-        return b[sortBy].localeCompare(a[sortBy]);
+        return b[sortBy].toString().localeCompare(a[sortBy].toString());
       }
-      return a[sortBy].localeCompare(b[sortBy]);
+      return a[sortBy].toString().localeCompare(b[sortBy].toString());
     }),
     payload.search
   );
 }
 
+const availableRoles = Object.entries(USER_ROLE_DISPLAY_NAMES)
+  .filter(([key]) => key !== 'company_owner' && key !== 'admin')
+  .map(([value, label]) => ({ value, label }));
+
 export const UsersTable = ({ companyId }: UsersTableProps) => {
-  const { users, loading, error } = useCompanyUsers(companyId);
+  const { user: currentUser } = useAuth();
+  const { users, loading, error, setUsers } = useCompanyUsers(companyId);
   const [search, setSearch] = useState('');
   const [sortedData, setSortedData] = useState<RowData[]>([]);
   const [sortBy, setSortBy] = useState<keyof RowData | null>(null);
@@ -95,13 +109,27 @@ export const UsersTable = ({ companyId }: UsersTableProps) => {
   useEffect(() => {
     if (users) {
       const initialData: RowData[] = users.map((user) => ({
+        _id: user._id,
         name: `${user.firstName} ${user.lastName}`,
         email: user.email,
         role: user.role,
+        isOwner: user.role === 'company_owner',
       }));
       setSortedData(sortData(initialData, { sortBy, reversed: reverseSortDirection, search }));
     }
   }, [users, sortBy, reverseSortDirection, search]);
+
+  const handleRoleChange = async (userId: string, newRole: string) => {
+    try {
+      const updatedUser = await updateUserRole(userId, newRole);
+      setUsers((prevUsers) =>
+        prevUsers.map((user) => (user._id === updatedUser._id ? updatedUser : user))
+      );
+    } catch (err) {
+      console.error('Failed to update user role:', err);
+      // Optionally, show an error message to the user
+    }
+  };
 
   const setSorting = (field: keyof RowData) => {
     const reversed = field === sortBy ? !reverseSortDirection : false;
@@ -117,13 +145,35 @@ export const UsersTable = ({ companyId }: UsersTableProps) => {
   if (loading) return <Loading />;
   if (error) return <Text c="red">Error loading users.</Text>;
 
-  const rows = sortedData.map((row) => (
-    <Table.Tr key={row.name}>
-      <Table.Td>{row.name}</Table.Td>
-      <Table.Td>{row.email}</Table.Td>
-      <Table.Td>{USER_ROLE_DISPLAY_NAMES[row.role]}</Table.Td>
-    </Table.Tr>
-  ));
+  const canEditRoles = currentUser?.role === 'company_owner' || currentUser?.role === 'logist';
+
+  const rows = sortedData.map((row) => {
+    const isCurrentUser = row._id === currentUser?._id;
+    const isTargetOwner = row.isOwner;
+    const isRequesterLogist = currentUser?.role === 'logist';
+
+    const disableRoleChange = isRequesterLogist && isTargetOwner;
+    const showSelect = canEditRoles && !isCurrentUser;
+
+    return (
+      <Table.Tr key={row.name}>
+        <Table.Td>{row.name}</Table.Td>
+        <Table.Td>{row.email}</Table.Td>
+        <Table.Td>
+          {showSelect ? (
+            <Select
+              data={availableRoles}
+              value={row.role}
+              onChange={(value) => handleRoleChange(row._id, value || '')}
+              disabled={disableRoleChange}
+            />
+          ) : (
+            USER_ROLE_DISPLAY_NAMES[row.role]
+          )}
+        </Table.Td>
+      </Table.Tr>
+    );
+  });
 
   return (
     <ScrollArea>
