@@ -1,21 +1,21 @@
 "use client";
 
 import classes from './CompanyPageBox.module.scss';
-import { Button, Paper, Text } from '@mantine/core';
-import { useState } from "react";
-import { CreateCompanyForm } from "@/components/forms/CreateCompanyForm";
+import { Paper } from '@mantine/core';
 import { useCompany } from '@/hooks/useCompany';
 import { Company } from '@/types/company.types';
 import { Loading } from "@/components/common/Loading";
 import { CompanyDetailsModule } from './CompanyDetails.module';
+import { JoinCompanyForm } from '../forms/JoinCompanyForm';
+import {useRouter} from "next/navigation";
 
 export function CompanyPageBox() {
   const { company, loading, error, setCompany } = useCompany();
-  const [showCreateForm, setShowCreateForm] = useState(false);
+  const router = useRouter();
 
-  const handleCompanyCreated = (newCompany: Company) => {
+  const handleCompanyJoined = (newCompany: Company) => {
     setCompany(newCompany);
-    setShowCreateForm(false);
+    router.push('/company');
   };
 
   if (loading) {
@@ -26,29 +26,12 @@ export function CompanyPageBox() {
     );
   }
 
-  if (showCreateForm) {
-    return (
-        <Paper radius="md" p="sm" withBorder className={classes.companyInfoBox}>
-            <CreateCompanyForm onCompanyCreated={handleCompanyCreated} />
-        </Paper>
-    )
-  }
-
   if (company) {
     return <CompanyDetailsModule company={company} />;
   }
 
   if (error) {
-    return (
-      <Paper radius="md" p="sm" withBorder className={classes.companyInfoBox}>
-        <Text size="sm" fw={500}>
-          You are not in a company yet.
-          <br />
-          Either create a new company or wait for an invitation.
-        </Text>
-        <Button onClick={() => setShowCreateForm(true)}>Create</Button>
-      </Paper>
-    );
+    return <JoinCompanyForm onCompanyJoined={handleCompanyJoined} />;
   }
 
   return null;

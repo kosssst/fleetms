@@ -2,11 +2,12 @@
 
 import { Button, Stack, TextInput, Text } from "@mantine/core";
 import { useForm } from "@mantine/form";
-import { createCompany } from "@/services/company.service";
+import { companyService } from "@/services/company.service";
 import { Company } from "@/types/company.types";
+import { User } from "@/types/user.types";
 
 interface CreateCompanyFormProps {
-  onCompanyCreated: (company: Company) => void;
+  onCompanyCreated: (data: { company: Company, user: User }) => void;
 }
 
 export function CreateCompanyForm({ onCompanyCreated }: CreateCompanyFormProps) {
@@ -30,9 +31,9 @@ export function CreateCompanyForm({ onCompanyCreated }: CreateCompanyFormProps) 
 
   async function handleSubmit() {
     try {
-      const newCompany = await createCompany(form.values);
-      localStorage.setItem('company_id', newCompany._id);
-      onCompanyCreated(newCompany);
+      const data = await companyService.createCompany(form.values);
+      localStorage.setItem('company_id', data.company._id);
+      onCompanyCreated(data);
     } catch (error) {
       console.error(error);
       alert('Something went wrong');

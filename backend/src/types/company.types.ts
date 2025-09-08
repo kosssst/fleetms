@@ -8,4 +8,5 @@ export interface Company extends mongoose.Document {
   members: mongoose.Types.ObjectId[];
   vehicles: mongoose.Types.ObjectId[];
   owner: mongoose.Types.ObjectId;
+  invitationCode: string;
 }

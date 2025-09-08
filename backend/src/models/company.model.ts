@@ -1,4 +1,5 @@
 import { Schema, model, Document, Types } from 'mongoose';
+import crypto from 'crypto';
 
 export interface ICompany extends Document {
   name: string;
@@ -7,6 +8,7 @@ export interface ICompany extends Document {
   members: Types.ObjectId[];
   vehicles: Types.ObjectId[];
   owner: Types.ObjectId;
+  invitationCode: string;
 }
 
 const CompanySchema = new Schema<ICompany>({
@@ -15,7 +17,8 @@ const CompanySchema = new Schema<ICompany>({
   phone: { type: String, required: true },
   members: [{ type: Schema.Types.ObjectId, ref: 'User' }],
   vehicles: [{ type: Schema.Types.ObjectId, ref: 'Vehicle' }],
-  owner: { type: Schema.Types.ObjectId, ref: 'User', required: true }
+  owner: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  invitationCode: { type: String, required: true, default: () => crypto.randomBytes(4).toString('hex'), unique: true }
 }, {
   timestamps: true,
   toJSON: {

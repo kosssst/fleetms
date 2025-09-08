@@ -9,4 +9,5 @@ export interface Company {
   members: User[];
   owner: User;
   vehicles: Vehicle[];
+  invitationCode?: string;
 }

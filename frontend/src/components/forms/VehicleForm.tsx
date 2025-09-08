@@ -37,7 +37,7 @@ const VehicleForm: React.FC<VehicleFormProps> = ({ vehicle, onSubmit, onClose })
         engineVolume: vehicle.engineVolume,
       });
     }
-  }, [vehicle]);
+  }, [vehicle, form]);
 
   const handleSubmit = (values: typeof form.values) => {
     onSubmit(values);

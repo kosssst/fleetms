@@ -16,3 +16,15 @@ export const getCompanyUsers = async (companyId: string) => {
   const { data } = await api.get<User[]>(`/company/${companyId}/users`);
   return data;
 };
+
+export const joinCompany = async (invitationCode: string) => {
+  const { data } = await api.post('/company/join', { invitationCode });
+  return data;
+};
+
+export const companyService = {
+  getCompany,
+  createCompany,
+  getCompanyUsers,
+  joinCompany,
+};
