@@ -152,20 +152,18 @@ export const UsersTable = ({ companyId }: UsersTableProps) => {
     const isTargetOwner = row.isOwner;
     const isRequesterLogist = currentUser?.role === 'logist';
 
-    const disableRoleChange = isRequesterLogist && isTargetOwner;
-    const showSelect = canEditRoles && !isCurrentUser;
+    const canChangeThisUserRole = canEditRoles && !isCurrentUser && !(isRequesterLogist && isTargetOwner);
 
     return (
       <Table.Tr key={row.name}>
         <Table.Td>{row.name}</Table.Td>
         <Table.Td>{row.email}</Table.Td>
         <Table.Td>
-          {showSelect ? (
+          {canChangeThisUserRole ? (
             <Select
               data={availableRoles}
               value={row.role}
               onChange={(value) => handleRoleChange(row._id, value || '')}
-              disabled={disableRoleChange}
             />
           ) : (
             USER_ROLE_DISPLAY_NAMES[row.role]
