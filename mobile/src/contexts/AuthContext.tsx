@@ -1,8 +1,7 @@
 
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import * as SecureStore from 'expo-secure-store';
-import axios from 'axios';
-import { API_URL } from '../config/api';
+import api from '../config/api';
 import { User } from '../types/user.types';
 
 interface AuthContextType {
@@ -25,8 +24,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const storedToken = await SecureStore.getItemAsync('token');
       if (storedToken) {
         setToken(storedToken);
-        axios.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
-        fetchUser();
+        await fetchUser();
       }
       setLoading(false);
     };
@@ -35,17 +33,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchUser = async () => {
     try {
-      const response = await axios.get(`${API_URL}/auth/me`);
+      const response = await api.get('/auth/me');
       setUser(response.data);
     } catch (error) {
       console.error('Failed to fetch user', error);
-      logout();
+      await logout();
     }
   };
 
   const login = async (newToken: string) => {
     setToken(newToken);
-    axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
     await SecureStore.setItemAsync('token', newToken);
     await fetchUser();
   };
@@ -53,7 +50,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = async () => {
     setUser(null);
     setToken(null);
-    delete axios.defaults.headers.common['Authorization'];
     await SecureStore.deleteItemAsync('token');
   };
 

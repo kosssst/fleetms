@@ -150,3 +150,21 @@ export const assignVehicle = asyncHandler(async (req: RequestWithUser, res: Resp
 
   res.json(vehicle.toObject());
 });
+
+export const getAssignedVehicle = asyncHandler(async (req: RequestWithUser, res: Response) => {
+  const user = req.user;
+
+  if (!user) {
+    res.status(401);
+    throw new Error('Not authorized');
+  }
+
+  const vehicle = await VehicleModel.findOne({ driverId: user._id });
+
+  if (!vehicle) {
+    res.status(404);
+    throw new Error('Vehicle not found');
+  }
+
+  res.json(vehicle.toObject());
+});
