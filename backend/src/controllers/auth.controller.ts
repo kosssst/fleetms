@@ -59,6 +59,7 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
       lastName: user.lastName,
       email: user.email,
       role: user.role,
+      companyId: user.companyId,
       token: accessToken,
     });
   } else {
@@ -85,6 +86,7 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
         lastName: user.lastName,
         email: user.email,
         role: user.role,
+        companyId: user.companyId,
         token: accessToken,
       });
     } else {
@@ -107,6 +109,7 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
         lastName: user.lastName,
         email: user.email,
         role: user.role,
+        companyId: user.companyId,
         token: accessToken,
       });
     }
@@ -130,6 +133,7 @@ export const mobileLogin = asyncHandler(async (req: Request, res: Response) => {
       lastName: user.lastName,
       email: user.email,
       role: user.role,
+      companyId: user.companyId,
       token: mobileToken,
     });
   } else {

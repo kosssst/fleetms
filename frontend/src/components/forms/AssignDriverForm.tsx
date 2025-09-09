@@ -30,10 +30,11 @@ const AssignDriverForm: React.FC<AssignDriverFormProps> = ({ vehicle, onSubmit, 
 
   useEffect(() => {
     const fetchUsers = async () => {
-      if (user?.companyId) {
+      if (user && user.companyId) {
         try {
           const companyUsers = await getCompanyUsers(user.companyId);
-          setUsers(companyUsers);
+          const drivers = companyUsers.filter((user) => user.role === 'driver');
+          setUsers(drivers);
         } catch (error) {
           console.error('Failed to fetch company users', error);
         }
@@ -41,7 +42,7 @@ const AssignDriverForm: React.FC<AssignDriverFormProps> = ({ vehicle, onSubmit, 
     };
 
     fetchUsers();
-  }, [user?.companyId]);
+  }, [user]);
 
   const handleSubmit = (values: typeof form.values) => {
     onSubmit(vehicle.id, values.driverId);

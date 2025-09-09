@@ -68,8 +68,9 @@ export const VehiclesTable = () => {
 
   const handleAssignDriverFormSubmit = async (vehicleId: string, driverId: string) => {
     try {
-      const updatedVehicle = await assignVehicle(vehicleId, driverId);
-      setVehicles(vehicles.map((v) => (v.id === updatedVehicle.id ? updatedVehicle : v)));
+      await assignVehicle(vehicleId, driverId);
+      const data = await getVehicles();
+      setVehicles(data);
       setIsAssignDriverFormOpen(false);
       setSelectedVehicle(null);
     } catch (error) {
