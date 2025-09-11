@@ -14,8 +14,37 @@ class BluetoothService {
   private activeDevice: BluetoothDevice | null = null;
   private isSearching = false;
   private isPolling = false;
+  private latestLocation: Location.LocationObject | null = null;
+  private locationSubscription: { remove: () => void } | null = null;
   private initializeCommands = ['ATZ', 'ATE0', 'ATL0', 'ATSP0'];
   private parameters = ["0104", "0105", "010C", "010D", "010F"];
+
+  async startLocationUpdates(onLog: LogCallback) {
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== 'granted') {
+      onLog('Permission to access location was denied');
+      return;
+    }
+
+    onLog('Starting location updates.');
+    this.locationSubscription = await Location.watchPositionAsync(
+      {
+        accuracy: Location.Accuracy.BestForNavigation,
+        timeInterval: 1000,
+        distanceInterval: 1,
+      },
+      (location) => {
+        this.latestLocation = location;
+      }
+    );
+  }
+
+  stopLocationUpdates() {
+    if (this.locationSubscription) {
+      this.locationSubscription.remove();
+      this.locationSubscription = null;
+    }
+  }
 
   async requestPermissions(onLog: LogCallback): Promise<boolean> {
     if (Platform.OS === 'ios') {
@@ -64,10 +93,10 @@ class BluetoothService {
 
         onLog(`Attempting to interrogate ${device.name} (${device.address})`);
         try {
-          const isElmDevice = await this.interrogateDevice(device, onLog);
-          if (isElmDevice) {
-            onLog(`ELM327 confirmed for device: ${device.name}. Connection established.`);
-            this.activeDevice = device;
+          const connectedDevice = await this.interrogateDevice(device, onLog);
+          if (connectedDevice) {
+            onLog(`ELM327 confirmed for device: ${connectedDevice.name}. Connection established.`);
+            this.activeDevice = connectedDevice;
             await this.initializeDevice(this.activeDevice, onLog);
             onDeviceFound(this.activeDevice);
             onStatusChange('connected');
@@ -107,7 +136,7 @@ class BluetoothService {
     });
   }
 
-  private async interrogateDevice(device: BluetoothDevice, onLog: LogCallback): Promise<boolean> {
+  private async interrogateDevice(device: BluetoothDevice, onLog: LogCallback): Promise<BluetoothDevice | null> {
     let connectedDevice: BluetoothDevice | null = null;
     try {
       connectedDevice = await RNBluetoothClassic.connectToDevice(device.address, {
@@ -120,10 +149,10 @@ class BluetoothService {
 
       onLog(`Received response: ${response.trim()}`);
       if (response.includes('ELM327')) {
-        return true;
+        return connectedDevice;
       } else {
         await connectedDevice.disconnect();
-        return false;
+        return null;
       }
     } catch (error) {
       if (connectedDevice) {
@@ -166,23 +195,23 @@ class BluetoothService {
 
   startPolling(device: BluetoothDevice, onLog: LogCallback) {
     this.isPolling = true;
+    this.startLocationUpdates(onLog);
     this.pollData(device, onLog);
   }
 
   stopPolling() {
     this.isPolling = false;
+    this.stopLocationUpdates();
   }
 
   async getGpsAndTimestampHex(onLog: LogCallback): Promise<string> {
-    try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        onLog('Permission to access location was denied');
-        return '';
-      }
+    if (!this.latestLocation) {
+      onLog('Location not available yet.');
+      return '';
+    }
 
-      const location = await Location.getCurrentPositionAsync({});
-      const { latitude, longitude } = location.coords;
+    try {
+      const { latitude, longitude } = this.latestLocation.coords;
 
       const latBuffer = Buffer.alloc(4);
       latBuffer.writeFloatBE(latitude, 0);
@@ -190,17 +219,16 @@ class BluetoothService {
       const lonBuffer = Buffer.alloc(4);
       lonBuffer.writeFloatBE(longitude, 0);
 
-      const timestamp = Date.now(); // Unix timestamp in seconds
+      const timestamp = Date.now();
       const timestampBuffer = Buffer.alloc(8);
       const high = Math.floor(timestamp / 0x100000000);
       const low = timestamp % 0x100000000;
       timestampBuffer.writeUInt32BE(high, 0);
       timestampBuffer.writeUInt32BE(low, 4);
 
-
       return (timestampBuffer.toString('hex') + latBuffer.toString('hex') + lonBuffer.toString('hex')).toUpperCase();
     } catch (error: any) {
-      onLog(`Error getting GPS and timestamp: ${error.message}`);
+      onLog(`Error processing GPS and timestamp: ${error.message}`);
       return '';
     }
   }
