@@ -13,7 +13,13 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "location",
+          "bluetooth-central"
+        ]
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -26,14 +32,23 @@
         "android.permission.BLUETOOTH_ADMIN",
         "android.permission.BLUETOOTH_CONNECT",
         "android.permission.BLUETOOTH_SCAN",
-        "android.permission.ACCESS_FINE_LOCATION"
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_BACKGROUND_LOCATION"
       ],
       "package": "com.fleetms.mobile"
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": ["./withAndroidCompileSdkVersion.js"],
+    "plugins": [
+      "./withAndroidCompileSdkVersion.js",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow $(PRODUCT_NAME) to use your location."
+        }
+      ]
+    ],
     "extra": {
       "eas": {
         "projectId": "fe61f156-59ea-45d1-ac9f-cabeba7efd36"

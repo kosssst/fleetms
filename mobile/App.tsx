@@ -6,6 +6,8 @@ import { BluetoothProvider } from './src/contexts/BluetoothContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import { darkTheme, lightTheme } from './src/styles/theme';
 import { SocketProvider } from './src/contexts/SocketContext';
+import './src/tasks/locationTask';
+
 
 export default function App() {
   const colorScheme = useColorScheme();
