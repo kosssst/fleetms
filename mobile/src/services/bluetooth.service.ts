@@ -3,6 +3,8 @@ import RNBluetoothClassic,
   BluetoothDevice,
 } from 'react-native-bluetooth-classic';
 import { PermissionsAndroid, Platform } from 'react-native';
+import * as Location from 'expo-location';
+import { Buffer } from 'buffer';
 
 type StatusCallback = (status: 'disconnected' | 'searching' | 'connected' | 'error') => void;
 type DeviceCallback = (device: BluetoothDevice | null) => void;
@@ -171,6 +173,38 @@ class BluetoothService {
     this.isPolling = false;
   }
 
+  async getGpsAndTimestampHex(onLog: LogCallback): Promise<string> {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        onLog('Permission to access location was denied');
+        return '';
+      }
+
+      const location = await Location.getCurrentPositionAsync({});
+      const { latitude, longitude } = location.coords;
+
+      const latBuffer = Buffer.alloc(4);
+      latBuffer.writeFloatBE(latitude, 0);
+
+      const lonBuffer = Buffer.alloc(4);
+      lonBuffer.writeFloatBE(longitude, 0);
+
+      const timestamp = Date.now(); // Unix timestamp in seconds
+      const timestampBuffer = Buffer.alloc(8);
+      const high = Math.floor(timestamp / 0x100000000);
+      const low = timestamp % 0x100000000;
+      timestampBuffer.writeUInt32BE(high, 0);
+      timestampBuffer.writeUInt32BE(low, 4);
+
+
+      return (timestampBuffer.toString('hex') + latBuffer.toString('hex') + lonBuffer.toString('hex')).toUpperCase();
+    } catch (error: any) {
+      onLog(`Error getting GPS and timestamp: ${error.message}`);
+      return '';
+    }
+  }
+
   async pollData(device: BluetoothDevice, onLog: LogCallback) {
     while (this.isPolling) {
       try {
@@ -186,7 +220,9 @@ class BluetoothService {
         }
 
         if (concatenatedResponses) {
-          onLog(`Concatenated responses: ${concatenatedResponses.trim()}`);
+          const gpsAndTimestampHex = await this.getGpsAndTimestampHex(onLog);
+          const finalResponse = gpsAndTimestampHex + concatenatedResponses;
+          onLog(`Concatenated responses: ${finalResponse.trim()}`);
         }
 
         await new Promise(resolve => setTimeout(resolve, 1000));
