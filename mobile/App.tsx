@@ -1,27 +1,45 @@
-import React from 'react';
-import { useColorScheme } from 'react-native';
-import { PaperProvider } from 'react-native-paper';
-import { AuthProvider } from './src/contexts/AuthContext';
-import { BluetoothProvider } from './src/contexts/BluetoothContext';
-import AppNavigator from './src/navigation/AppNavigator';
-import { darkTheme, lightTheme } from './src/styles/theme';
-import { SocketProvider } from './src/contexts/SocketContext';
-import './src/tasks/locationTask';
+/**
+ * Sample React Native App
+ * https://github.com/facebook/react-native
+ *
+ * @format
+ */
 
+import { NewAppScreen } from '@react-native/new-app-screen';
+import { StatusBar, StyleSheet, useColorScheme, View } from 'react-native';
+import {
+  SafeAreaProvider,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 
-export default function App() {
-  const colorScheme = useColorScheme();
-  const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
+function App() {
+  const isDarkMode = useColorScheme() === 'dark';
 
   return (
-    <PaperProvider theme={theme}>
-      <AuthProvider>
-        <BluetoothProvider>
-          <SocketProvider>
-            <AppNavigator />
-          </SocketProvider>
-        </BluetoothProvider>
-      </AuthProvider>
-    </PaperProvider>
+    <SafeAreaProvider>
+      <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
+      <AppContent />
+    </SafeAreaProvider>
   );
 }
+
+function AppContent() {
+  const safeAreaInsets = useSafeAreaInsets();
+
+  return (
+    <View style={styles.container}>
+      <NewAppScreen
+        templateFileName="App.tsx"
+        safeAreaInsets={safeAreaInsets}
+      />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+});
+
+export default App;
