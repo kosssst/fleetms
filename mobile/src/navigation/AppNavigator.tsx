@@ -1,0 +1,54 @@
+import React, { useEffect } from 'react';
+import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
+import { createStackNavigator } from '@react-navigation/stack';
+import { useAuth } from '../contexts/AuthContext';
+import LoginScreen from '../screens/LoginScreen';
+import MainScreen from '../screens/MainScreen';
+import { SplashScreen } from '../screens/SplashScreen';
+import { useTheme } from 'react-native-paper';
+import { initSocket } from '../services/socket';
+import { useSocket } from '../contexts/SocketContext';
+
+const Stack = createStackNavigator();
+
+const AppNavigator = () => {
+  const { user, loading, token, logout } = useAuth();
+  const { addLog, setSocketStatus } = useSocket();
+  const paperTheme = useTheme();
+
+  useEffect(() => {
+    if (token) {
+      initSocket(token, logout, addLog, setSocketStatus);
+    }
+  }, [token, logout, addLog, setSocketStatus]);
+
+
+  const navigationTheme = {
+    ...(paperTheme.dark ? DarkTheme : DefaultTheme),
+    colors: {
+      ...(paperTheme.dark ? DarkTheme.colors : DefaultTheme.colors),
+      background: paperTheme.colors.background,
+      card: paperTheme.colors.surface,
+      text: paperTheme.colors.onSurface,
+      primary: paperTheme.colors.primary,
+    },
+  };
+
+  if (loading) {
+    return <SplashScreen />;
+  }
+
+  return (
+    <NavigationContainer theme={navigationTheme}>
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        {user ? (
+          <Stack.Screen name="Main" component={MainScreen} />
+        ) : (
+          <Stack.Screen name="Login" component={LoginScreen} />
+        )}
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
+};
+
+export default AppNavigator;
