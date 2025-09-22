@@ -5,7 +5,7 @@ export interface IVehicle extends Document {
   manufacturer: string;
   modelName: string;
   number: string;
-  engineVolume: number;
+  numberOfCylinders: number;
   companyId: Types.ObjectId;
   driverId?: Types.ObjectId;
 }
@@ -14,7 +14,7 @@ const VehicleSchema = new Schema<IVehicle>({
   manufacturer: { type: String, required: true },
   modelName: { type: String, required: true },
   number: { type: String, required: true, unique: true },
-  engineVolume: { type: Number, required: true },
+  numberOfCylinders: { type: Number, required: true },
   companyId: { type: Schema.Types.ObjectId, ref: 'Company', required: true },
   driverId: { type: Schema.Types.ObjectId, ref: 'User' }
 }, {

@@ -14,8 +14,10 @@ services:
       - REFRESH_TOKEN_SECRET=${REFRESH_TOKEN_SECRET}
       - FRONTEND_URL=${FRONTEND_URL}
       - NODE_ENV=development
+      - RABBITMQ_URL=${RABBITMQ_URL}
     depends_on:
       - mongo
+      - rabbitmq
     networks:
       - fleetms-network
 
@@ -46,6 +48,39 @@ services:
       - "127.0.0.1:27017:27017"
     volumes:
       - db_data:/data/db
+    networks:
+      - fleetms-network
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: fleetms-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=user
+      - RABBITMQ_DEFAULT_PASS=password
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - fleetms-network
+
+  analysis-service:
+    build: ./analysis-service
+    command: npm run dev
+    restart: unless-stopped
+    volumes:
+      - ./analysis-service:/app
+      - /app/node_modules
+    environment:
+      - MONGODB_URI=mongodb://mongo:27017/fleetms
+      - RABBITMQ_URL=${RABBITMQ_URL}
+    depends_on:
+      - rabbitmq
+      - mongo
     networks:
       - fleetms-network
 

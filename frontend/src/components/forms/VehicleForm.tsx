@@ -18,13 +18,13 @@ const VehicleForm: React.FC<VehicleFormProps> = ({ vehicle, onSubmit, onClose })
       manufacturer: '',
       modelName: '',
       number: '',
-      engineVolume: 0,
+      numberOfCylinders: 0,
     },
     validate: {
       manufacturer: (value) => (value.length < 2 ? 'Manufacturer must have at least 2 letters' : null),
       modelName: (value) => (value.length < 2 ? 'Model must have at least 2 letters' : null),
       number: (value) => (value.length < 2 ? 'Number must have at least 2 letters' : null),
-      engineVolume: (value) => (value > 0 ? null : 'Engine volume must be a positive number'),
+      numberOfCylinders: (value) => (value > 0 ? null : 'Number of cylinders must be a positive number'),
     },
   });
 
@@ -34,7 +34,7 @@ const VehicleForm: React.FC<VehicleFormProps> = ({ vehicle, onSubmit, onClose })
         manufacturer: vehicle.manufacturer,
         modelName: vehicle.modelName,
         number: vehicle.number,
-        engineVolume: vehicle.engineVolume,
+        numberOfCylinders: vehicle.numberOfCylinders,
       });
     }
   }, [vehicle, form]);
@@ -67,10 +67,10 @@ const VehicleForm: React.FC<VehicleFormProps> = ({ vehicle, onSubmit, onClose })
           mt="md"
         />
         <TextInput
-          label="Engine Volume"
-          placeholder="Enter engine volume"
+          label="Number of Cylinders"
+          placeholder="Enter number of cylinders"
           type="number"
-          {...form.getInputProps('engineVolume')}
+          {...form.getInputProps('numberOfCylinders')}
           required
           mt="md"
         />

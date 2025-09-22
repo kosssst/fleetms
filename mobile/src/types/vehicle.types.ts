@@ -3,5 +3,6 @@ export interface Vehicle {
   manufacturer: string;
   modelName: string;
   number: string;
+  numberOfCylinders: number;
   driverId?: string;
 }

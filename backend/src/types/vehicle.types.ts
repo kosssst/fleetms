@@ -6,7 +6,7 @@ export interface Vehicle {
   manufacturer: string;
   modelName: string;
   number: string;
-  engineVolume: number;
+  numberOfCylinders: number;
   companyId: Types.ObjectId;
   driverId?: Types.ObjectId;
   createdAt: Date;

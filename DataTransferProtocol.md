@@ -38,7 +38,9 @@ Header is 1 byte long and goes at start of each frame.
 | 001011          | PONG            | Pong response                  |
 | 001100          | PAUSE_TRIP_REQ  | Request to pause trip logging  |
 | 001101          | PAUSE_TRIP_OK   | Trip logging paused            |
-| 001110 - 111111 | RESERVED        | Reserved                       |
+| 001110          | CONFIG_REQ      | Configuration request          |
+| 001111          | CONFIG_ACK      | Configuration successful       |
+| 010000 - 111111 | RESERVED        | Reserved                       |
 
 COMMAND frame structure:
 
@@ -118,6 +120,19 @@ header: 0x0C
 - PAUSE_TRIP_OK:
 ```text
 header: 0x0D
+```
+
+- CONFIG_REQ:
+```text
+header: 0x0E
+```
+
+- CONFIG_ACK:
+```text
+header: 0x0F
+n1: uint16 (number of DATA frames after which ACK should be sent by server)
+t1: uint16 (ping interval in seconds when trip is paused)
+t2: uint16 (ping timeout in seconds when trip is paused)
 ```
 
 DATA frame structure:

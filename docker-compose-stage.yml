@@ -10,8 +10,10 @@ services:
       - REFRESH_TOKEN_SECRET=${REFRESH_TOKEN_SECRET}
       - FRONTEND_URL=${FRONTEND_URL}
       - NODE_ENV=production
+      - RABBITMQ_URL=amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672
     depends_on:
       - mongo
+      - rabbitmq
     networks:
       - fleetms-network
 
@@ -38,6 +40,31 @@ services:
       - "127.0.0.1:27018:27017"
     volumes:
       - db_data:/data/db
+    networks:
+      - fleetms-network
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: fleetms-rabbitmq-stage
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5673:5672"
+      - "127.0.0.1:15673:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_DEFAULT_USER}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_DEFAULT_PASS}
+    networks:
+      - fleetms-network
+
+  analysis-service:
+    build: ./analysis-service
+    restart: unless-stopped
+    environment:
+      - MONGODB_URI=mongodb://mongo:27017/fleetms
+      - RABBITMQ_URL=amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672
+    depends_on:
+      - rabbitmq
+      - mongo
     networks:
       - fleetms-network
 

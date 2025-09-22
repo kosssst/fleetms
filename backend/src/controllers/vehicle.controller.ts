@@ -11,7 +11,7 @@ interface RequestWithUser extends Request {
 }
 
 export const createVehicle = asyncHandler(async (req: RequestWithUser, res: Response) => {
-  const { manufacturer, modelName, number, engineVolume } = req.body;
+  const { manufacturer, modelName, number, numberOfCylinders } = req.body;
   const user = req.user;
 
   if (!user || !user.companyId) {
@@ -28,7 +28,7 @@ export const createVehicle = asyncHandler(async (req: RequestWithUser, res: Resp
     manufacturer,
     modelName,
     number,
-    engineVolume,
+    numberOfCylinders,
     companyId: user.companyId
   });
 
@@ -53,7 +53,7 @@ export const getVehicles = asyncHandler(async (req: RequestWithUser, res: Respon
 
 export const updateVehicle = asyncHandler(async (req: RequestWithUser, res: Response) => {
   const { id } = req.params;
-  const { manufacturer, modelName, number, engineVolume } = req.body;
+  const { manufacturer, modelName, number, numberOfCylinders } = req.body;
   const user = req.user;
 
   if (!user || !user.companyId) {
@@ -70,7 +70,7 @@ export const updateVehicle = asyncHandler(async (req: RequestWithUser, res: Resp
     manufacturer,
     modelName,
     number,
-    engineVolume
+    numberOfCylinders
   }, { new: true });
 
   if (!vehicle) {

@@ -11,6 +11,7 @@ import authRoutes from './routes/auth.routes';
 import companyRoutes from './routes/company.routes';
 import userRoutes from './routes/user.routes';
 import vehicleRoutes from './routes/vehicle.routes';
+import tripRoutes from './routes/trip.routes';
 
 dotenv.config();
 
@@ -34,6 +35,7 @@ app.use('/auth', authRoutes);
 app.use('/company', companyRoutes);
 app.use('/users', userRoutes);
 app.use('/vehicles', vehicleRoutes);
+app.use('/trips', tripRoutes);
 
 app.get('/', (req: Request, res: Response) => {
   res.send('Express + TypeScript Server');

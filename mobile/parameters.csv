@@ -1,0 +1,7 @@
+command,startByte,numBits,header
+21A0,15,16,Vehicle speed
+21A0,13,16,Engine speed
+21A1,50,16,Accelerator position
+21A1,25,16,Engine coolant temperature
+21A1,27,16,Intake air temperature
+21A5,9,16,Fuel per stroke

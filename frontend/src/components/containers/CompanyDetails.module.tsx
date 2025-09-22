@@ -2,7 +2,8 @@ import { Paper, Tabs } from "@mantine/core";
 import { Company } from "@/types/company.types";
 import { UsersTable } from "@/components/tables/UsersTable";
 import { VehiclesTable } from "@/components/tables/VehiclesTable";
-import {IconUsers, IconTruck, IconInfoCircle} from "@tabler/icons-react";
+import { TripsTable } from "@/components/tables/TripsTable";
+import {IconUsers, IconTruck, IconInfoCircle, IconRoute} from "@tabler/icons-react";
 import {CompanyInfoModule} from "@/components/containers/CompanyInfo.module";
 import classes from "../../styles/CompanyDetails.module.scss"
 
@@ -23,6 +24,9 @@ export const CompanyDetailsModule = ({ company }: CompanyDetailsProps) => {
         <Tabs.Tab value="vehicles" leftSection={<IconTruck size={16} />}>
           Vehicles
         </Tabs.Tab>
+        <Tabs.Tab value="trips" leftSection={<IconRoute size={16} />}>
+          Trips
+        </Tabs.Tab>
       </Tabs.List>
       <Paper radius="md" p="sm" withBorder className={classes.paper}>
         <Tabs.Panel value="companyInfo" pt="xs">
@@ -35,6 +39,10 @@ export const CompanyDetailsModule = ({ company }: CompanyDetailsProps) => {
 
         <Tabs.Panel value="vehicles" pt="xs">
           <VehiclesTable />
+        </Tabs.Panel>
+
+        <Tabs.Panel value="trips" pt="xs">
+          <TripsTable />
         </Tabs.Panel>
       </Paper>
     </Tabs>
