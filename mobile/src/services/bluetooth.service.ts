@@ -2,11 +2,9 @@ import RNBluetoothClassic, {
   BluetoothDevice,
 } from 'react-native-bluetooth-classic';
 import { PermissionsAndroid, Platform } from 'react-native';
-import * as Location from 'expo-location';
+import Geolocation from 'react-native-geolocation-service';
 import { Buffer } from 'buffer';
-import * as TaskManager from 'expo-task-manager';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { LOCATION_TASK_NAME } from '../tasks/locationTask';
 
 type StatusCallback = (
   status: 'disconnected' | 'searching' | 'connected' | 'error',
@@ -24,54 +22,50 @@ class BluetoothService {
   private dataSubscription: { remove: () => void } | null = null;
   private initializeCommands = ['ATZ', 'ATE0', 'ATL0', 'ATSP0'];
   private parameters = ['0104', '0105', '010C', '010D', '010F'];
+  private locationWatchId: number | null = null;
 
   async startLocationUpdates(onLog: LogCallback) {
-    const { status: foregroundStatus } =
-      await Location.requestForegroundPermissionsAsync();
-    if (foregroundStatus !== 'granted') {
-      onLog('Permission to access location was denied');
-      return;
-    }
-
-    const { status: backgroundStatus } =
-      await Location.requestBackgroundPermissionsAsync();
-    if (backgroundStatus !== 'granted') {
-      onLog('Permission to access background location was denied');
-      return;
-    }
-
-    // Get and store the initial location
-    try {
-      const initialLocation = await Location.getCurrentPositionAsync({});
-      await AsyncStorage.setItem(
-        LATEST_LOCATION_KEY,
-        JSON.stringify(initialLocation),
+    if (Platform.OS === 'android') {
+      const granted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+        {
+          title: 'Location Permission',
+          message: 'This app needs access to your location for OBD2 data.',
+          buttonNeutral: 'Ask Me Later',
+          buttonNegative: 'Cancel',
+          buttonPositive: 'OK',
+        },
       );
-      onLog('Initial location stored.');
-    } catch (error: any) {
-      onLog(`Error getting initial location: ${error.message}`);
-      return; // Don't start background updates if we can't get an initial fix
+      if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
+        onLog('Permission to access location was denied');
+        return;
+      }
     }
 
-    onLog('Starting background location updates.');
-    await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
-      accuracy: Location.Accuracy.BestForNavigation,
-      timeInterval: 1000,
-      distanceInterval: 1,
-      showsBackgroundLocationIndicator: true,
-      foregroundService: {
-        notificationTitle: 'FleetMS',
-        notificationBody: 'Tracking location for OBD2 data.',
+    this.locationWatchId = Geolocation.watchPosition(
+      async (position) => {
+        await AsyncStorage.setItem(
+          LATEST_LOCATION_KEY,
+          JSON.stringify(position),
+        );
+        onLog('Location updated.');
       },
-    });
+      (error) => {
+        onLog(`Location error: ${error.message}`);
+      },
+      {
+        enableHighAccuracy: true,
+        distanceFilter: 1,
+        interval: 1000,
+        fastestInterval: 1000,
+      },
+    );
   }
 
   async stopLocationUpdates() {
-    const isTaskRunning = await TaskManager.isTaskRegisteredAsync(
-      LOCATION_TASK_NAME,
-    );
-    if (isTaskRunning) {
-      await Location.stopLocationUpdatesAsync(LOCATION_TASK_NAME);
+    if (this.locationWatchId !== null) {
+      Geolocation.clearWatch(this.locationWatchId);
+      this.locationWatchId = null;
     }
   }
 
@@ -292,7 +286,7 @@ class BluetoothService {
         onLog('Location not available yet.');
         return '';
       }
-      const latestLocation: Location.LocationObject =
+      const latestLocation: Geolocation.GeoPosition =
         JSON.parse(latestLocationString);
       const { latitude, longitude } = latestLocation.coords;
 
@@ -330,11 +324,12 @@ class BluetoothService {
           onLog(`Polling with param: ${param}`);
           await device.write(`${param}\r`);
           const response = await this.readFromQueue();
-          const cleanedResponse = response
-            .trim()
-            .split(' ')
-            .slice(2)
-            .join('');
+          const cleanedResponse =
+            response
+              .trim()
+              .split(' ')
+              .slice(2)
+              .join('');
           concatenatedResponses += cleanedResponse;
         }
 
@@ -357,3 +352,4 @@ class BluetoothService {
 }
 
 export const bluetoothService = new BluetoothService();
+

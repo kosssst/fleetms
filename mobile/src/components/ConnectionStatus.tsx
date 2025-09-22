@@ -5,8 +5,8 @@ import { useSocket } from '../contexts/SocketContext';
 import { useTheme, Card, Title, Button, Text } from 'react-native-paper';
 
 const ConnectionStatus: React.FC = () => {
-  const { connectionStatus: bluetoothStatus, logs: bluetoothLogs, startSearch, stopSearch } = useBluetooth();
-  const { socketStatus, logs: socketLogs } = useSocket();
+  const { connectionStatus: bluetoothStatus, logs: bluetoothLogs = [], startSearch, stopSearch } = useBluetooth();
+  const { socketStatus, logs: socketLogs = [] } = useSocket();
   const theme = useTheme();
 
   const isSearching = bluetoothStatus === 'searching';
@@ -39,7 +39,7 @@ const ConnectionStatus: React.FC = () => {
     }
   };
 
-  const combinedLogs = [...bluetoothLogs, ...socketLogs].sort((a, b) => {
+  const combinedLogs = [...(bluetoothLogs || []), ...(socketLogs || [])].sort((a, b) => {
     const timeA = a.match(/\\\[(.*?)\\\]/)?.[1];
     const timeB = b.match(/\\\[(.*?)\\\]/)?.[1];
     if (timeA && timeB) {

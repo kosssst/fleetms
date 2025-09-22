@@ -1,5 +1,5 @@
 
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import React, { createContext, useState, useEffect, useContext, useCallback } from 'react';
 import * as Keychain from 'react-native-keychain';
 import api from '../config/api';
 import { User } from '../types/user.types';
@@ -19,6 +19,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const logout = useCallback(async () => {
+    setUser(null);
+    setToken(null);
+    await Keychain.resetGenericPassword();
+  }, []);
+
+  const fetchUser = useCallback(async () => {
+    try {
+      const response = await api.get('/auth/me');
+      setUser(response.data);
+    } catch (error) {
+      console.error('Failed to fetch user', error);
+      await logout();
+    }
+  }, [logout]);
+
   useEffect(() => {
     const loadToken = async () => {
       const credentials = await Keychain.getGenericPassword();
@@ -29,28 +45,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoading(false);
     };
     loadToken();
-  }, []);
-
-  const fetchUser = async () => {
-    try {
-      const response = await api.get('/auth/me');
-      setUser(response.data);
-    } catch (error) {
-      console.error('Failed to fetch user', error);
-      await logout();
-    }
-  };
+  }, [fetchUser]);
 
   const login = async (newToken: string) => {
     setToken(newToken);
     await Keychain.setGenericPassword('token', newToken);
     await fetchUser();
-  };
-
-  const logout = async () => {
-    setUser(null);
-    setToken(null);
-    await Keychain.resetGenericPassword();
   };
 
   return (

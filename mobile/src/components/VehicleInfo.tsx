@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 import { Card, Title, Paragraph, useTheme } from 'react-native-paper';
 import { Vehicle } from '../types/vehicle.types';
 

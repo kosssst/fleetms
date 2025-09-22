@@ -1,5 +1,5 @@
 import axios from 'axios';
-import * as SecureStore from 'expo-secure-store';
+import * as Keychain from 'react-native-keychain';
 
 export const API_URL = 'http://192.168.31.248:8000'; // Make sure this IP is accessible from your mobile device
 
@@ -13,9 +13,13 @@ const api = axios.create({
 // Add a request interceptor to include the token in headers
 api.interceptors.request.use(
   async (config) => {
-    const token = await SecureStore.getItemAsync('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    try {
+      const credentials = await Keychain.getGenericPassword();
+      if (credentials) {
+        config.headers.Authorization = `Bearer ${credentials.password}`;
+      }
+    } catch (error) {
+      console.log("Keychain couldn't be accessed!", error);
     }
     return config;
   },
