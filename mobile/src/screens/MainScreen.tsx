@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, PermissionsAndroid, Platform, Alert } from 'react-native';
-import { Button, Card, Title, Paragraph, useTheme, Text } from 'react-native-paper';
+import { View, StyleSheet } from 'react-native';
+import { Button, Card, Title, Paragraph, useTheme } from 'react-native-paper';
 import { useAuth } from '../contexts/AuthContext';
 import { useBluetooth } from '../contexts/BluetoothContext';
 import { useSocket } from '../contexts/SocketContext';
@@ -9,60 +9,6 @@ import VehicleInfo from '../components/VehicleInfo';
 import { getAssignedVehicle } from '../services/vehicle.service';
 import { Vehicle } from '../types/vehicle.types';
 import { useOBD } from '../hooks/useOBD';
-
-const requestBluetoothPermission = async (): Promise<boolean> => {
-  if (Platform.OS !== 'android') {
-    return true;
-  }
-  // For Android 12 and above
-  if (Platform.Version >= 31) {
-    try {
-      const granted = await PermissionsAndroid.requestMultiple([
-        PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
-        PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
-      ]);
-      if (
-        granted['android.permission.BLUETOOTH_CONNECT'] === PermissionsAndroid.RESULTS.GRANTED &&
-        granted['android.permission.BLUETOOTH_SCAN'] === PermissionsAndroid.RESULTS.GRANTED
-      ) {
-        console.log('Bluetooth permissions for Android 12+ granted');
-        return true;
-      } else {
-        console.log('Bluetooth permissions for Android 12+ denied');
-        return false;
-      }
-    } catch (err) {
-      console.warn(err);
-      return false;
-    }
-  }
-  // For Android 11 and below
-  else {
-    try {
-      const granted = await PermissionsAndroid.request(
-        PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-        {
-          title: 'Location Permission',
-          message: 'Bluetooth requires location permission to scan for devices.',
-          buttonNeutral: 'Ask Me Later',
-          buttonNegative: 'Cancel',
-          buttonPositive: 'OK',
-        },
-      );
-      if (granted === PermissionsAndroid.RESULTS.GRANTED) {
-        console.log('Location permission for Bluetooth granted');
-        return true;
-      } else {
-        console.log('Location permission for Bluetooth denied');
-        return false;
-      }
-    } catch (err) {
-      console.warn(err);
-      return false;
-    }
-  }
-};
-
 
 const MainScreen = () => {
   const { user, logout } = useAuth();

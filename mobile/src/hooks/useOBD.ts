@@ -2,8 +2,9 @@ import { useState, useEffect, useRef } from 'react';
 import { obdService } from '../services/obd.service';
 import { Alert } from 'react-native';
 import { Buffer } from 'buffer';
+import config from '../config/config';
 
-const WEBSOCKET_URL = 'ws://localhost:8000'; // This should be in an env file
+const WEBSOCKET_URL = config.WEBSOCKET_URL;
 
 // Helper to log buffer data as hex
 const logHex = (prefix: string, data: Buffer | ArrayBuffer) => {

@@ -1,7 +1,8 @@
 import axios from 'axios';
 import * as Keychain from 'react-native-keychain';
+import appConfig from './config';
 
-export const API_URL = 'http://192.168.31.248:8000'; // Make sure this IP is accessible from your mobile device
+export const API_URL = appConfig.API_URL;
 
 const api = axios.create({
   baseURL: API_URL,

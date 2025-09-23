@@ -1,4 +1,4 @@
-import { API_URL } from '../config/api';
+import config from '../config/config';
 
 let socket: WebSocket;
 
@@ -12,7 +12,7 @@ export const initSocket = (
     socket.close();
   }
 
-  const socketUrl = API_URL.replace('http', 'ws');
+  const socketUrl = config.WEBSOCKET_URL;
   socket = new WebSocket(`${socketUrl}?token=${token}`);
 
   socket.onopen = () => {

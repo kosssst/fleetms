@@ -1,3 +1,5 @@
+
+
 apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
@@ -72,6 +74,17 @@ def enableProguardInReleaseBuilds = false
  */
 def jscFlavor = 'io.github.react-native-community:jsc-android:2026004.+'
 
+project.ext.envConfigFiles = [
+    devDebug   : ".env.dev",
+    devRelease : ".env.dev",
+
+    stageDebug : ".env.stage",
+    stageRelease: ".env.stage",
+
+    prodDebug  : ".env.prod",
+    prodRelease: ".env.prod",
+]
+
 android {
     ndkVersion rootProject.ext.ndkVersion
     buildToolsVersion rootProject.ext.buildToolsVersion
@@ -84,6 +97,7 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0"
+        resValue "string", "build_config_package", "com.mobile"
     }
     signingConfigs {
         debug {
@@ -105,6 +119,23 @@ android {
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }
     }
+    flavorDimensions "env"
+    productFlavors {
+        dev {
+            dimension "env"
+            applicationIdSuffix ".dev"
+            resValue "string", "app_name", "FleetMS Dev"
+        }
+        stage {
+            dimension "env"
+            applicationIdSuffix ".stage"
+            resValue "string", "app_name", "FleetMS Stage"
+        }
+        prod {
+            dimension "env"
+            resValue "string", "app_name", "FleetMS"
+        }
+    }
 }
 
 dependencies {
@@ -119,3 +150,5 @@ dependencies {
 }
 
 apply from: "../../node_modules/react-native-vector-icons/fonts.gradle"
+
+apply from: project(':react-native-config').projectDir.getPath() + "/dotenv.gradle"
