@@ -15,16 +15,10 @@ const MainScreen = () => {
   const theme = useTheme();
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const { connectionStatus: bluetoothStatus } = useBluetooth();
-  const { socketStatus } = useSocket();
+  const { socketStatus, connectSocket, disconnectSocket, startTrip, pauseTrip, resumeTrip, endTrip } = useSocket();
+  const [tripStatus, setTripStatus] = useState<'stopped' | 'ongoing' | 'paused'>('stopped');
 
-  const {
-    obdData,
-    tripStatus,
-    startTrip,
-    pauseTrip,
-    resumeTrip,
-    endTrip,
-  } = useOBD(user?.token || '', vehicle?.numberOfCylinders || 0);
+  const { obdData } = useOBD(tripStatus, vehicle?.numberOfCylinders || 0);
 
   useEffect(() => {
     const fetchVehicle = async () => {
@@ -34,6 +28,26 @@ const MainScreen = () => {
 
     fetchVehicle();
   }, []);
+
+  const handleStartTrip = () => {
+    startTrip();
+    setTripStatus('ongoing');
+  };
+
+  const handlePauseTrip = () => {
+    pauseTrip();
+    setTripStatus('paused');
+  };
+
+  const handleResumeTrip = () => {
+    resumeTrip();
+    setTripStatus('ongoing');
+  };
+
+  const handleEndTrip = () => {
+    endTrip();
+    setTripStatus('stopped');
+  };
 
   const isConnected = bluetoothStatus === 'connected' && socketStatus === 'connected';
 
@@ -49,24 +63,39 @@ const MainScreen = () => {
 
       {vehicle && <VehicleInfo vehicle={vehicle} />}
 
+      {/* --- DEBUG BUTTONS --- */}
+      <View style={styles.debugContainer}>
+        {socketStatus !== 'connected' && (
+          <Button mode="outlined" onPress={connectSocket} style={styles.debugButton}>
+            Connect Socket
+          </Button>
+        )}
+        {socketStatus === 'connected' && (
+          <Button mode="outlined" onPress={disconnectSocket} style={styles.debugButton}>
+            Disconnect Socket
+          </Button>
+        )}
+      </View>
+      {/* --- END DEBUG BUTTONS --- */}
+
       <View style={styles.tripControls}>
         {tripStatus === 'stopped' && (
-          <Button mode="contained" onPress={startTrip} style={styles.button} disabled={!isConnected}>
+          <Button mode="contained" onPress={handleStartTrip} style={styles.button} disabled={!isConnected}>
             Start Trip
           </Button>
         )}
         {tripStatus === 'ongoing' && (
-          <Button mode="contained" onPress={pauseTrip} style={styles.button}>
+          <Button mode="contained" onPress={handlePauseTrip} style={styles.button}>
             Pause Trip
           </Button>
         )}
         {tripStatus === 'paused' && (
-          <Button mode="contained" onPress={resumeTrip} style={styles.button}>
+          <Button mode="contained" onPress={handleResumeTrip} style={styles.button}>
             Resume Trip
           </Button>
         )}
         {(tripStatus === 'ongoing' || tripStatus === 'paused') && (
-          <Button mode="contained" onPress={endTrip} style={styles.button}>
+          <Button mode="contained" onPress={handleEndTrip} style={styles.button}>
             End Trip
           </Button>
         )}
@@ -102,6 +131,15 @@ const styles = StyleSheet.create({
   tripControls: {
     marginTop: 16,
   },
+  debugContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginVertical: 8,
+  },
+  debugButton: {
+    flex: 1,
+    marginHorizontal: 4,
+  }
 });
 
 export default MainScreen;

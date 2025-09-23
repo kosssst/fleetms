@@ -161,11 +161,13 @@ Normal flow:
 1. Client connects to server via Websocket.
 2. Client sends AUTH_REQ with authentication token.
 3. Server responds with AUTH_OK and session_id if authentication is successful.
-4. Client sends START_TRIP_REQ to begin trip logging.
-5. Server responds with START_TRIP_OK and trip_id.
-6. Client sends DATA frames with telemetry data.
-7. Server acknowledges each `n1` DATA frames with ACK control frame. if not - reconnect it triggered.
-8. Client sends END_TRIP_REQ to end trip logging.
+4. Client sends CONFIG_REQ to get configuration parameters.
+5. Server responds with CONFIG_ACK with parameters `n1`, `t1`, `t2`.
+6. Client sends START_TRIP_REQ to begin trip logging.
+7. Server responds with START_TRIP_OK and trip_id.
+8. Client sends DATA frames with telemetry data.
+9. Server acknowledges each `n1` DATA frames with ACK control frame. if not - reconnect it triggered.
+10. Client sends END_TRIP_REQ to end trip logging.
 
 In case when trip is paused, client sends PING frame every `t1` seconds. If server does not respond with PING in `t2` seconds, client should attempt to reconnect.
 
@@ -176,7 +178,9 @@ On disconnection, client should attempt to reconnect to server.
 On reconnection, should be followed next steps:
 1. Client sends AUTH_REQ with authentication token.
 2. Server responds with AUTH_OK and session_id if authentication is successful.
-3. Client sends RESUME_TRIP_REQ with previous trip_id.
-4. Server responds with RESUME_TRIP_OK.
-5. Client resumes sending DATA frames. Additionally, client sends DATA frames with telemetry frames which were collected when client was not connected to server.
+3. Client sends CONFIG_REQ to get configuration parameters.
+4. Server responds with CONFIG_ACK with parameters `n1`, `t1`, `t2`.
+5. Client sends RESUME_TRIP_REQ with previous trip_id.
+6. Server responds with RESUME_TRIP_OK.
+7. Client resumes sending DATA frames. Additionally, client sends DATA frames with telemetry frames which were collected when client was not connected to server.
 

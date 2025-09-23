@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
 import { useBluetooth } from '../contexts/BluetoothContext';
 import { useSocket } from '../contexts/SocketContext';
@@ -8,42 +8,32 @@ const ConnectionStatus: React.FC = () => {
   const { connectionStatus: bluetoothStatus, logs: bluetoothLogs = [], startSearch, stopSearch } = useBluetooth();
   const { socketStatus, logs: socketLogs = [] } = useSocket();
   const theme = useTheme();
+  const scrollViewRef = useRef<ScrollView>(null);
 
   const isSearching = bluetoothStatus === 'searching';
 
-  const renderBluetoothStatusIndicator = () => {
-    switch (bluetoothStatus) {
+  useEffect(() => {
+    scrollViewRef.current?.scrollToEnd({ animated: true });
+  }, [bluetoothLogs, socketLogs]);
+
+  const getStatusStyle = (status: string) => {
+    switch (status) {
       case 'connected':
-        return <View style={[styles.circle, { backgroundColor: 'green' }]} />;
+        return { backgroundColor: 'green' };
+      case 'connecting':
       case 'searching':
-        return <View style={[styles.circle, { backgroundColor: 'yellow' }]} />;
-      case 'disconnected':
-        return <View style={[styles.circle, { backgroundColor: theme.colors.error }]} />;
-      case 'error':
-        return <View style={[styles.circle, { backgroundColor: theme.colors.error }]} />;
+        return { backgroundColor: 'yellow' };
       default:
-        return <View style={[styles.circle, { backgroundColor: theme.colors.onSurfaceDisabled }]} />;
+        return { backgroundColor: theme.colors.error };
     }
   };
 
-  const renderSocketStatusIndicator = () => {
-    switch (socketStatus) {
-      case 'connected':
-        return <View style={[styles.circle, { backgroundColor: 'green' }]} />;
-      case 'disconnected':
-        return <View style={[styles.circle, { backgroundColor: theme.colors.error }]} />;
-      case 'error':
-        return <View style={[styles.circle, { backgroundColor: theme.colors.error }]} />;
-      default:
-        return <View style={[styles.circle, { backgroundColor: theme.colors.onSurfaceDisabled }]} />;
-    }
-  };
-
-  const combinedLogs = [...(bluetoothLogs || []), ...(socketLogs || [])].sort((a, b) => {
-    const timeA = a.match(/\\\[(.*?)\\\]/)?.[1];
-    const timeB = b.match(/\\\[(.*?)\\\]/)?.[1];
+  const combinedLogs = [...(socketLogs || []), ...(bluetoothLogs || [])].sort((a, b) => {
+    const timeA = a.match(/\\[(.*?)\\]/)?.[1];
+    const timeB = b.match(/\\[(.*?)\\]/)?.[1];
     if (timeA && timeB) {
-      return new Date(timeA).getTime() - new Date(timeB).getTime();
+      // A simple string sort is enough if the timestamp format is consistent
+      return timeA.localeCompare(timeB);
     }
     return 0;
   });
@@ -52,13 +42,13 @@ const ConnectionStatus: React.FC = () => {
     <Card style={{ margin: 16, backgroundColor: theme.colors.surface }}>
       <Card.Content>
         <View style={styles.statusContainer}>
-          {renderSocketStatusIndicator()}
+          <View style={[styles.circle, getStatusStyle(socketStatus)]} />
           <Title style={{ color: theme.colors.onSurface, marginLeft: 12 }}>
             Socket: {socketStatus}
           </Title>
         </View>
         <View style={styles.statusContainer}>
-          {renderBluetoothStatusIndicator()}
+          <View style={[styles.circle, getStatusStyle(bluetoothStatus)]} />
           <Title style={{ color: theme.colors.onSurface, marginLeft: 12 }}>
             Bluetooth: {bluetoothStatus}
           </Title>
@@ -82,7 +72,7 @@ const ConnectionStatus: React.FC = () => {
           </Button>
         </View>
         <View style={[styles.logContainer, { borderColor: theme.colors.outline }]}>
-          <ScrollView nestedScrollEnabled={true}>
+          <ScrollView ref={scrollViewRef} nestedScrollEnabled={true}>
             {combinedLogs.map((log, index) => (
               <Text key={index} style={[styles.logText, { color: theme.colors.onSurfaceVariant }]}>
                 {log}
