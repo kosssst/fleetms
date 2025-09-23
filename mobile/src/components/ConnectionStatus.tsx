@@ -2,13 +2,14 @@ import React, { useRef, useEffect } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
 import { useBluetooth } from '../contexts/BluetoothContext';
 import { useSocket } from '../contexts/SocketContext';
-import { useTheme, Card, Title, Button, Text } from 'react-native-paper';
+import { useTheme, Card, Title, Button, Text, MD3Theme } from 'react-native-paper';
 
 const ConnectionStatus: React.FC = () => {
   const { connectionStatus: bluetoothStatus, logs: bluetoothLogs = [], startSearch, stopSearch } = useBluetooth();
   const { socketStatus, logs: socketLogs = [] } = useSocket();
   const theme = useTheme();
   const scrollViewRef = useRef<ScrollView>(null);
+  const styles = createStyles(theme);
 
   const isSearching = bluetoothStatus === 'searching';
 
@@ -19,12 +20,12 @@ const ConnectionStatus: React.FC = () => {
   const getStatusStyle = (status: string) => {
     switch (status) {
       case 'connected':
-        return { backgroundColor: 'green' };
+        return styles.statusConnected;
       case 'connecting':
       case 'searching':
-        return { backgroundColor: 'yellow' };
+        return styles.statusConnecting;
       default:
-        return { backgroundColor: theme.colors.error };
+        return styles.statusError;
     }
   };
 
@@ -32,24 +33,23 @@ const ConnectionStatus: React.FC = () => {
     const timeA = a.match(/\\[(.*?)\\]/)?.[1];
     const timeB = b.match(/\\[(.*?)\\]/)?.[1];
     if (timeA && timeB) {
-      // A simple string sort is enough if the timestamp format is consistent
       return timeA.localeCompare(timeB);
     }
     return 0;
   });
 
   return (
-    <Card style={{ margin: 16, backgroundColor: theme.colors.surface }}>
+    <Card style={styles.card}>
       <Card.Content>
         <View style={styles.statusContainer}>
           <View style={[styles.circle, getStatusStyle(socketStatus)]} />
-          <Title style={{ color: theme.colors.onSurface, marginLeft: 12 }}>
+          <Title style={styles.title}>
             Socket: {socketStatus}
           </Title>
         </View>
         <View style={styles.statusContainer}>
           <View style={[styles.circle, getStatusStyle(bluetoothStatus)]} />
-          <Title style={{ color: theme.colors.onSurface, marginLeft: 12 }}>
+          <Title style={styles.title}>
             Bluetooth: {bluetoothStatus}
           </Title>
         </View>
@@ -71,10 +71,10 @@ const ConnectionStatus: React.FC = () => {
             Stop Search
           </Button>
         </View>
-        <View style={[styles.logContainer, { borderColor: theme.colors.outline }]}>
+        <View style={styles.logContainer}>
           <ScrollView ref={scrollViewRef} nestedScrollEnabled={true}>
             {combinedLogs.map((log, index) => (
-              <Text key={index} style={[styles.logText, { color: theme.colors.onSurfaceVariant }]}>
+              <Text key={index} style={styles.logText}>
                 {log}
               </Text>
             ))}
@@ -85,7 +85,11 @@ const ConnectionStatus: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: MD3Theme) => StyleSheet.create({
+  card: {
+    margin: 16,
+    backgroundColor: theme.colors.surface,
+  },
   statusContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -95,6 +99,19 @@ const styles = StyleSheet.create({
     width: 15,
     height: 15,
     borderRadius: 7.5,
+  },
+  title: {
+    color: theme.colors.onSurface,
+    marginLeft: 12,
+  },
+  statusConnected: {
+    backgroundColor: 'green',
+  },
+  statusConnecting: {
+    backgroundColor: 'yellow',
+  },
+  statusError: {
+    backgroundColor: theme.colors.error,
   },
   buttonContainer: {
     flexDirection: 'row',
@@ -111,10 +128,12 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 10,
     backgroundColor: 'rgba(0,0,0,0.05)',
+    borderColor: theme.colors.outline,
   },
   logText: {
     fontSize: 12,
     fontFamily: 'monospace',
+    color: theme.colors.onSurfaceVariant,
   },
 });
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet } from 'react-native';
-import { Button, Card, Title, Paragraph, useTheme } from 'react-native-paper';
+import { Button, Card, Title, Paragraph, useTheme, MD3Theme } from 'react-native-paper';
 import { useAuth } from '../contexts/AuthContext';
 import { useBluetooth } from '../contexts/BluetoothContext';
 import { useSocket } from '../contexts/SocketContext';
@@ -13,6 +13,7 @@ import { useOBD } from '../hooks/useOBD';
 const MainScreen = () => {
   const { user, logout } = useAuth();
   const theme = useTheme();
+  const styles = createStyles(theme);
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const { connectionStatus: bluetoothStatus } = useBluetooth();
   const { socketStatus, connectSocket, disconnectSocket, startTrip, pauseTrip, resumeTrip, endTrip } = useSocket();
@@ -52,9 +53,9 @@ const MainScreen = () => {
   const isConnected = bluetoothStatus === 'connected' && socketStatus === 'connected';
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <View style={styles.container}>
       <ConnectionStatus />
-      <Card style={{ backgroundColor: theme.colors.surface, marginBottom: 16 }}>
+      <Card style={styles.welcomeCard}>
         <Card.Content>
           <Title>Welcome, {user?.firstName}!</Title>
           <Paragraph>Role: {user?.role}</Paragraph>
@@ -102,7 +103,7 @@ const MainScreen = () => {
       </View>
 
       {tripStatus === 'ongoing' && obdData && (
-        <Card style={{ backgroundColor: theme.colors.surface, marginTop: 16 }}>
+        <Card style={styles.obdCard}>
           <Card.Content>
             <Title>OBD Data</Title>
             <Paragraph>Vehicle Speed: {obdData.vehicle_speed}</Paragraph>
@@ -119,11 +120,20 @@ const MainScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: MD3Theme) => StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: 'center',
     padding: 16,
+    backgroundColor: theme.colors.background,
+  },
+  welcomeCard: {
+    backgroundColor: theme.colors.surface,
+    marginBottom: 16,
+  },
+  obdCard: {
+    backgroundColor: theme.colors.surface,
+    marginTop: 16,
   },
   button: {
     marginTop: 16,

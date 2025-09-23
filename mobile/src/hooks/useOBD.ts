@@ -27,7 +27,15 @@ export const useOBD = (tripStatus: 'stopped' | 'ongoing' | 'paused', numberOfCyl
   useEffect(() => {
     if (tripStatus === 'ongoing' && obdData) {
       const dataFrame = Buffer.alloc(32);
-      dataFrame.writeBigUInt64BE(BigInt(new Date().getTime()), 0);
+      const timestamp = BigInt(new Date().getTime());
+      /* eslint-disable no-bitwise */
+      const high = Number(timestamp >> 32n);
+      const low = Number(timestamp & 0xFFFFFFFFn);
+      /* eslint-enable no-bitwise */
+
+      dataFrame.writeUInt32BE(high, 0);
+      dataFrame.writeUInt32BE(low, 4);
+      
       // Populate the rest of the data frame with real obdData...
       dataFrame.writeUInt16BE(obdData.vehicle_speed || 0, 20);
       dataFrame.writeUInt16BE(obdData.engine_speed || 0, 22);

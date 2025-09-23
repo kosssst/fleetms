@@ -15,7 +15,7 @@ const CommandType = {
   CONFIG_REQ: 0x0E, CONFIG_ACK: 0x0F,
 };
 const getCommandName = (value: number) => {
-  const entry = Object.entries(CommandType).find(([_, val]) => val === value);
+  const entry = Object.entries(CommandType).find(([_, val]: [string, number]) => val === value);
   return entry ? entry[0] : `UNKNOWN(0x${value.toString(16)})`;
 };
 
@@ -26,9 +26,11 @@ const ErrorCode = {
 };
 
 // --- Helper Functions ---
+/* eslint-disable no-bitwise */
 const createControlHeader = (command: number) => (FrameType.CONTROL << 7) | (command << 2);
 const createDataHeader = (recordCount: number) => (FrameType.DATA << 7) | (recordCount & 0x3F);
 const getCommandType = (header: number) => (header >> 2) & 0x3F;
+/* eslint-enable no-bitwise */
 
 type SocketStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
 
@@ -149,8 +151,9 @@ class WebSocketService {
   }
 
   private onMessage(event: MessageEvent) {
-    const data = Buffer.from(event.data);
+    const data = Buffer.from(event.data as ArrayBuffer);
     const header = data.readUInt8(0);
+    // eslint-disable-next-line no-bitwise
     const frameType = (header >> 7) & 0x01;
 
     if (frameType === FrameType.CONTROL) {
@@ -158,6 +161,7 @@ class WebSocketService {
       this.log(`Received CONTROL: ${getCommandName(commandType)}`);
       this.handleControlMessage(commandType, data);
     } else {
+      // eslint-disable-next-line no-bitwise
       const recordCount = header & 0x3F;
       this.log(`Received DATA with ${recordCount} records.`);
     }
@@ -229,6 +233,7 @@ class WebSocketService {
         const commandType = getCommandType(buffer.readUInt8(0));
         this.log(`Sending CONTROL: ${getCommandName(commandType)}`);
       } else {
+        // eslint-disable-next-line no-bitwise
         const recordCount = buffer.readUInt8(0) & 0x3F;
         this.log(`Sending DATA with ${recordCount} records.`);
       }

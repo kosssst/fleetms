@@ -106,7 +106,7 @@ class OBDService {
           const rawValue = valueBytes.readUInt16BE(0);
 
           if (decoder.header === 'fuel_per_stroke') {
-            allData['fuel_consumption_rate'] = rawValue * numberOfCylinders;
+            allData.fuel_consumption_rate = rawValue * numberOfCylinders;
           } else {
             allData[decoder.header] = rawValue;
           }
