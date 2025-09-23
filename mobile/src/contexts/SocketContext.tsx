@@ -19,7 +19,7 @@ interface SocketContextData {
 const SocketContext = createContext<SocketContextData>({} as SocketContextData);
 
 export const SocketProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const { token } = useAuth();
+  const { token, logout } = useAuth();
   const [socketStatus, setSocketStatus] = useState<SocketStatus>('disconnected');
   const [tripId, setTripId] = useState<string | null>(null);
   const [logs, setLogs] = useState<string[]>([]);
@@ -34,7 +34,11 @@ export const SocketProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     webSocketService.onStatusChange = setSocketStatus;
     webSocketService.onTripIdReceived = setTripId;
     webSocketService.onLog = addLog;
-  }, [addLog]);
+    webSocketService.onAuthError = () => {
+      addLog("Authentication failed. Logging out.");
+      logout();
+    };
+  }, [addLog, logout]);
 
   const connectSocket = useCallback(() => {
     if (token) {
