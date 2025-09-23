@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect, useRef, useCallback } from 'react';
+import { AppState } from 'react-native';
 import { webSocketService } from '../services/WebSocketService';
 import { useAuth } from './AuthContext';
 
@@ -19,18 +20,20 @@ interface SocketContextData {
 const SocketContext = createContext<SocketContextData>({} as SocketContextData);
 
 export const SocketProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const { token, logout } = useAuth();
+  const { token, loading, logout } = useAuth();
   const [socketStatus, setSocketStatus] = useState<SocketStatus>('disconnected');
   const [tripId, setTripId] = useState<string | null>(null);
   const [logs, setLogs] = useState<string[]>([]);
+  const [isConnectionEnabled, setIsConnectionEnabled] = useState(false);
+  const appState = useRef(AppState.currentState);
 
   const addLog = useCallback((message: string) => {
     const timestamp = new Date().toLocaleTimeString();
     setLogs(prevLogs => [`[${timestamp}] ${message}`, ...prevLogs.slice(0, 100)]);
   }, []);
 
+  // Effect to set up service callbacks
   useEffect(() => {
-    // This effect now only registers the callbacks
     webSocketService.onStatusChange = setSocketStatus;
     webSocketService.onTripIdReceived = setTripId;
     webSocketService.onLog = addLog;
@@ -40,18 +43,39 @@ export const SocketProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     };
   }, [addLog, logout]);
 
-  const connectSocket = useCallback(() => {
-    if (token) {
-      webSocketService.connect(token);
-    } else {
-      addLog("Error: Cannot connect. No auth token available.");
+  // Effect for managing the connection lifecycle
+  useEffect(() => {
+    const handleAppStateChange = (nextAppState: any) => {
+      if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
+        if (isConnectionEnabled && token && socketStatus !== 'connected') {
+          webSocketService.connect(token);
+        }
+      }
+      appState.current = nextAppState;
+    };
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+
+    if (!loading) {
+      if (isConnectionEnabled && token) {
+        // Only connect if we are currently disconnected
+        if (socketStatus === 'disconnected' || socketStatus === 'error') {
+          webSocketService.connect(token);
+        }
+      } else {
+        // Only disconnect if we are currently connected or connecting
+        if (socketStatus === 'connected' || socketStatus === 'connecting') {
+          webSocketService.disconnect();
+        }
+      }
     }
-  }, [token, addLog]);
 
-  const disconnectSocket = useCallback(() => {
-    webSocketService.disconnect();
-  }, []);
+    return () => {
+      subscription.remove();
+    };
+  }, [token, loading, isConnectionEnabled, socketStatus]);
 
+  const connectSocket = () => setIsConnectionEnabled(true);
+  const disconnectSocket = () => setIsConnectionEnabled(false);
 
   // Effect for handling trip resumption after connection
   useEffect(() => {

@@ -64,7 +64,6 @@ const MainScreen = () => {
 
       {vehicle && <VehicleInfo vehicle={vehicle} />}
 
-      {/* --- DEBUG BUTTONS --- */}
       <View style={styles.debugContainer}>
         {socketStatus !== 'connected' && (
           <Button mode="outlined" onPress={connectSocket} style={styles.debugButton}>
@@ -77,7 +76,6 @@ const MainScreen = () => {
           </Button>
         )}
       </View>
-      {/* --- END DEBUG BUTTONS --- */}
 
       <View style={styles.tripControls}>
         {tripStatus === 'stopped' && (

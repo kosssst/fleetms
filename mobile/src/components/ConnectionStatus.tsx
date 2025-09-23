@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { View, StyleSheet, ScrollView } from 'react-native';
+import { View, StyleSheet, ScrollView, NativeScrollEvent } from 'react-native';
 import { useBluetooth } from '../contexts/BluetoothContext';
 import { useSocket } from '../contexts/SocketContext';
 import { useTheme, Card, Title, Button, Text, MD3Theme } from 'react-native-paper';
@@ -9,13 +9,37 @@ const ConnectionStatus: React.FC = () => {
   const { socketStatus, logs: socketLogs = [] } = useSocket();
   const theme = useTheme();
   const scrollViewRef = useRef<ScrollView>(null);
-  const styles = createStyles(theme);
+  
+  const scrollState = useRef({
+    isAtBottom: true,
+  }).current;
 
+  const styles = createStyles(theme);
   const isSearching = bluetoothStatus === 'searching';
 
+  // Sort oldest first, so newest appears at the bottom
+  const combinedLogs = [...(socketLogs || []), ...(bluetoothLogs || [])].sort((a, b) => {
+    const timeA = a.match(/\\\[(.*?)\\\]/)?.[1];
+    const timeB = b.match(/\\\[(.*?)\\\]/)?.[1];
+    if (timeA && timeB) {
+      return timeA.localeCompare(timeB); // Sort ascending
+    }
+    return 0;
+  });
+
   useEffect(() => {
-    scrollViewRef.current?.scrollToEnd({ animated: true });
-  }, [bluetoothLogs, socketLogs]);
+    // If the user was at the bottom before the new logs were added, scroll to the new bottom.
+    if (scrollState.isAtBottom) {
+      scrollViewRef.current?.scrollToEnd({ animated: true });
+    }
+  }, [combinedLogs, scrollState]);
+
+  const handleScroll = (event: NativeScrollEvent) => {
+    const { layoutMeasurement, contentOffset, contentSize } = event;
+    const paddingToBottom = 20; // A small tolerance
+    const isScrolledToBottom = layoutMeasurement.height + contentOffset.y >= contentSize.height - paddingToBottom;
+    scrollState.isAtBottom = isScrolledToBottom;
+  };
 
   const getStatusStyle = (status: string) => {
     switch (status) {
@@ -28,15 +52,6 @@ const ConnectionStatus: React.FC = () => {
         return styles.statusError;
     }
   };
-
-  const combinedLogs = [...(socketLogs || []), ...(bluetoothLogs || [])].sort((a, b) => {
-    const timeA = a.match(/\\[(.*?)\\]/)?.[1];
-    const timeB = b.match(/\\[(.*?)\\]/)?.[1];
-    if (timeA && timeB) {
-      return timeA.localeCompare(timeB);
-    }
-    return 0;
-  });
 
   return (
     <Card style={styles.card}>
@@ -72,7 +87,12 @@ const ConnectionStatus: React.FC = () => {
           </Button>
         </View>
         <View style={styles.logContainer}>
-          <ScrollView ref={scrollViewRef} nestedScrollEnabled={true}>
+          <ScrollView
+            ref={scrollViewRef}
+            nestedScrollEnabled={true}
+            onScroll={({ nativeEvent }) => handleScroll(nativeEvent)}
+            scrollEventThrottle={400}
+          >
             {combinedLogs.map((log, index) => (
               <Text key={index} style={styles.logText}>
                 {log}

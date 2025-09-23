@@ -31,9 +31,9 @@ const ErrorCode = {
 };
 
 // --- Helper Functions ---
-const createControlHeader = (command: number) => (FrameType.CONTROL << 7) | (command << 2);
-const getCommandType = (header: number) => (header >> 2) & 0x3F;
+/* eslint-disable no-bitwise */
 const getFrameType = (header: number) => (header >> 7) & 0x01;
+/* eslint-enable no-bitwise */
 
 class ClientConnection {
   private ws: WebSocket;
@@ -56,7 +56,7 @@ class ClientConnection {
     const frameType = getFrameType(header);
 
     if (frameType === FrameType.CONTROL) {
-      const commandType = getCommandType(header);
+      const commandType = header; // For CONTROL frames, the header IS the command
       console.log(`Received CONTROL: ${getCommandName(commandType)}`);
       await this.handleControlMessage(commandType, message);
     } else {
@@ -65,6 +65,7 @@ class ClientConnection {
         this.ws.close(1008, 'Not ready for data');
         return;
       }
+      // eslint-disable-next-line no-bitwise
       const recordCount = header & 0x3F;
       console.log(`Received DATA with ${recordCount} records.`);
       await this.handleDataMessage(recordCount, message.slice(1));
@@ -88,7 +89,6 @@ class ClientConnection {
             throw new Error('User not found for the given token');
           }
           
-          // Workaround: Find vehicle by reverse-searching for the user's ID
           const vehicle = await VehicleModel.findOne({ driverId: user._id });
 
           if (!vehicle) {
@@ -98,10 +98,9 @@ class ClientConnection {
           this.isAuthenticated = true;
           this.vehicleId = vehicle._id as Types.ObjectId;
 
-          const header = createControlHeader(CommandType.AUTH_OK);
           const sessionId = Buffer.from('mock-session-id', 'utf-8');
           const response = Buffer.alloc(3 + sessionId.length);
-          response.writeUInt8(header, 0);
+          response.writeUInt8(CommandType.AUTH_OK, 0);
           response.writeUInt16BE(sessionId.length, 1);
           sessionId.copy(response, 3);
           this.send(response);
@@ -109,11 +108,10 @@ class ClientConnection {
           const errorMessage = (err as Error).message || 'Authentication failed';
           console.error('Authentication failed:', errorMessage);
           
-          const errorHeader = createControlHeader(CommandType.ERROR);
           const messageBytes = Buffer.from(errorMessage, 'utf-8');
           const errorResponse = Buffer.alloc(4 + messageBytes.length);
           
-          errorResponse.writeUInt8(errorHeader, 0);
+          errorResponse.writeUInt8(CommandType.ERROR, 0);
           errorResponse.writeUInt8(ErrorCode.AUTH_FAILED, 1);
           errorResponse.writeUInt16BE(messageBytes.length, 2);
           messageBytes.copy(errorResponse, 4);
@@ -123,12 +121,12 @@ class ClientConnection {
         break;
 
       case CommandType.CONFIG_REQ:
-        const header = createControlHeader(CommandType.CONFIG_ACK);
-        const response = Buffer.alloc(7);
-        response.writeUInt8(header, 0);
-        response.writeUInt16BE(this.n1, 1);
-        response.writeUInt16BE(30, 3);
-        response.writeUInt16BE(10, 5);
+        const response = Buffer.alloc(9);
+        response.writeUInt8(CommandType.CONFIG_ACK, 0);
+        response.writeUInt16BE(6, 1); // Payload length
+        response.writeUInt16BE(this.n1, 3);
+        response.writeUInt16BE(30, 5);
+        response.writeUInt16BE(10, 7);
         this.send(response);
         break;
 
@@ -138,9 +136,8 @@ class ClientConnection {
         this.tripId = newTrip._id as Types.ObjectId;
 
         const tripIdBytes = Buffer.from(this.tripId.toHexString(), 'hex');
-        const startHeader = createControlHeader(CommandType.START_TRIP_OK);
         const startResponse = Buffer.alloc(3 + tripIdBytes.length);
-        startResponse.writeUInt8(startHeader, 0);
+        startResponse.writeUInt8(CommandType.START_TRIP_OK, 0);
         startResponse.writeUInt16BE(tripIdBytes.length, 1);
         tripIdBytes.copy(startResponse, 3);
         this.send(startResponse);
@@ -154,22 +151,22 @@ class ClientConnection {
           return this.ws.close(1002, 'Invalid trip');
         }
         this.tripId = existingTrip._id as Types.ObjectId;
-        this.send(Buffer.from([createControlHeader(CommandType.RESUME_TRIP_OK)]));
+        this.send(Buffer.from([CommandType.RESUME_TRIP_OK]));
         break;
 
       case CommandType.PAUSE_TRIP_REQ:
         if (this.tripId) await TripModel.findByIdAndUpdate(this.tripId, { $set: { status: 'paused' } });
-        this.send(Buffer.from([createControlHeader(CommandType.PAUSE_TRIP_OK)]));
+        this.send(Buffer.from([CommandType.PAUSE_TRIP_OK]));
         break;
 
       case CommandType.END_TRIP_REQ:
         if (this.tripId) await TripModel.findByIdAndUpdate(this.tripId, { $set: { status: 'completed', endTime: new Date() } });
         this.tripId = null;
-        this.send(Buffer.from([createControlHeader(CommandType.END_TRIP_OK)]));
+        this.send(Buffer.from([CommandType.END_TRIP_OK]));
         break;
 
       case CommandType.PING:
-        this.send(Buffer.from([createControlHeader(CommandType.PONG)]));
+        this.send(Buffer.from([CommandType.PONG]));
         break;
     }
   }
@@ -198,7 +195,7 @@ class ClientConnection {
 
     this.receivedFramesSinceAck += recordCount;
     if (this.receivedFramesSinceAck >= this.n1) {
-      this.send(Buffer.from([createControlHeader(CommandType.ACK)]));
+      this.send(Buffer.from([CommandType.ACK]));
       this.receivedFramesSinceAck = 0;
     }
   }

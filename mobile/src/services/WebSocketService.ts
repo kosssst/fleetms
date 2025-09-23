@@ -19,6 +19,10 @@ const getCommandName = (value: number) => {
   return entry ? entry[0] : `UNKNOWN(0x${value.toString(16)})`;
 };
 
+const bufferToSpacedHex = (buffer: Buffer) => {
+  return buffer.toString('hex').match(/.{1,2}/g)?.join(' ').toUpperCase() || '';
+};
+
 // Error Codes for ERROR frame
 const ErrorCode = {
   AUTH_FAILED: 0x01,
@@ -27,9 +31,8 @@ const ErrorCode = {
 
 // --- Helper Functions ---
 /* eslint-disable no-bitwise */
-const createControlHeader = (command: number) => (FrameType.CONTROL << 7) | (command << 2);
 const createDataHeader = (recordCount: number) => (FrameType.DATA << 7) | (recordCount & 0x3F);
-const getCommandType = (header: number) => (header >> 2) & 0x3F;
+const getFrameType = (header: number) => (header >> 7) & 0x01;
 /* eslint-enable no-bitwise */
 
 type SocketStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
@@ -45,6 +48,7 @@ class WebSocketService {
   private pingIntervalId: number | null = null;
   private pingTimeoutId: number | null = null;
   private ackTimeoutId: number | null = null;
+  private reconnectTimer: number | null = null;
 
   // Protocol Config
   private n1: number = 10; // ACK threshold
@@ -99,32 +103,31 @@ class WebSocketService {
   }
 
   startTrip() {
-    const header = createControlHeader(CommandType.START_TRIP_REQ);
-    this.sendMessage(Buffer.from([header]));
+    this.clearPingTimers();
+    this.sendMessage(Buffer.from([CommandType.START_TRIP_REQ]));
   }
 
   resumeTrip(tripId: string) {
+    this.clearPingTimers();
     this.tripId = tripId;
     const tripIdBytes = Buffer.from(tripId, 'hex');
     const buffer = Buffer.alloc(3 + tripIdBytes.length);
-    const header = createControlHeader(CommandType.RESUME_TRIP_REQ);
-    buffer.writeUInt8(header, 0);
+    buffer.writeUInt8(CommandType.RESUME_TRIP_REQ, 0);
     buffer.writeUInt16BE(tripIdBytes.length, 1);
     tripIdBytes.copy(buffer, 3);
     this.sendMessage(buffer);
   }
 
   pauseTrip() {
-    const header = createControlHeader(CommandType.PAUSE_TRIP_REQ);
-    this.sendMessage(Buffer.from([header]));
+    this.sendMessage(Buffer.from([CommandType.PAUSE_TRIP_REQ]));
     this.startPing();
   }
 
   endTrip() {
-    const header = createControlHeader(CommandType.END_TRIP_REQ);
-    this.sendMessage(Buffer.from([header]));
+    this.sendMessage(Buffer.from([CommandType.END_TRIP_REQ]));
     this.clearAllTimers();
     this.tripId = null;
+    this.startPing();
   }
 
   sendDataFrames(frames: Buffer[]) {
@@ -151,13 +154,14 @@ class WebSocketService {
   }
 
   private onMessage(event: MessageEvent) {
+    this.startPing();
     const data = Buffer.from(event.data as ArrayBuffer);
+    console.log(`[RECV RAW] ${bufferToSpacedHex(data)}`);
     const header = data.readUInt8(0);
-    // eslint-disable-next-line no-bitwise
-    const frameType = (header >> 7) & 0x01;
+    const frameType = getFrameType(header);
 
     if (frameType === FrameType.CONTROL) {
-      const commandType = getCommandType(header);
+      const commandType = header; // For CONTROL frames, the header IS the command
       this.log(`Received CONTROL: ${getCommandName(commandType)}`);
       this.handleControlMessage(commandType, data);
     } else {
@@ -171,7 +175,7 @@ class WebSocketService {
     this.log(`WebSocket Error: ${(error as any).message || 'Unknown error'}`);
     this.status = 'error';
     this.onStatusChange(this.status);
-    // Reconnection is disabled for manual debugging
+    this.reconnect();
   }
 
   private onClose(event: CloseEvent) {
@@ -188,12 +192,16 @@ class WebSocketService {
         this.requestConfig();
         break;
       case CommandType.CONFIG_ACK:
-        this.n1 = data.readUInt16BE(1);
-        this.t1 = data.readUInt16BE(3);
-        this.t2 = data.readUInt16BE(5);
-        this.log(` -> Config received: n1=${this.n1}, t1=${this.t1}, t2=${this.t2}`);
-        if (this.isReconnecting && this.tripId) {
-          this.resumeTrip(this.tripId);
+        const payloadLength = data.readUInt16BE(1);
+        if (payloadLength === 6) {
+            this.n1 = data.readUInt16BE(3);
+            this.t1 = data.readUInt16BE(5);
+            this.t2 = data.readUInt16BE(7);
+            this.log(` -> Config received: n1=${this.n1}, t1=${this.t1}, t2=${this.t2}`);
+            this.startPing();
+            if (this.isReconnecting && this.tripId) {
+              this.resumeTrip(this.tripId);
+            }
         }
         break;
       case CommandType.START_TRIP_OK:
@@ -229,14 +237,16 @@ class WebSocketService {
 
   private sendMessage(buffer: Buffer, isControl: boolean = true) {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.startPing();
       if (isControl) {
-        const commandType = getCommandType(buffer.readUInt8(0));
+        const commandType = buffer.readUInt8(0);
         this.log(`Sending CONTROL: ${getCommandName(commandType)}`);
       } else {
         // eslint-disable-next-line no-bitwise
         const recordCount = buffer.readUInt8(0) & 0x3F;
         this.log(`Sending DATA with ${recordCount} records.`);
       }
+      console.log(`[SEND RAW] ${bufferToSpacedHex(buffer)}`);
       this.ws.send(buffer);
     } else {
       this.log('Error: WebSocket is not connected.');
@@ -247,16 +257,14 @@ class WebSocketService {
     if (!this.token) return;
     const tokenBytes = Buffer.from(this.token, 'utf-8');
     const buffer = Buffer.alloc(3 + tokenBytes.length);
-    const header = createControlHeader(CommandType.AUTH_REQ);
-    buffer.writeUInt8(header, 0);
+    buffer.writeUInt8(CommandType.AUTH_REQ, 0);
     buffer.writeUInt16BE(tokenBytes.length, 1);
     tokenBytes.copy(buffer, 3);
     this.sendMessage(buffer);
   }
 
   private requestConfig() {
-    const header = createControlHeader(CommandType.CONFIG_REQ);
-    this.sendMessage(Buffer.from([header]));
+    this.sendMessage(Buffer.from([CommandType.CONFIG_REQ]));
   }
 
   private sendOfflineBuffer() {
@@ -264,7 +272,6 @@ class WebSocketService {
       this.log(`Sending ${this.dataFrameBuffer.length} buffered data frames...`);
       const framesToSend = [...this.dataFrameBuffer];
       this.dataFrameBuffer = [];
-      // Send in chunks to avoid large single messages
       const chunkSize = 60;
       for (let i = 0; i < framesToSend.length; i += chunkSize) {
         const chunk = framesToSend.slice(i, i + chunkSize);
@@ -273,17 +280,34 @@ class WebSocketService {
     }
   }
 
+  private reconnect() {
+    if (this.reconnectTimer || this.status === 'connecting' || this.status === 'connected') {
+      return;
+    }
+    this.disconnect();
+    if (this.token) {
+      this.reconnectTimer = BackgroundTimer.setTimeout(() => {
+        this.log('Attempting to reconnect...');
+        this.reconnectTimer = null;
+        this.connect(this.token!);
+      }, 5000);
+    }
+  }
+
   // --- Timers ---
   private startPing() {
     this.clearPingTimers();
+    const pingInterval = this.t1 * 1000;
+    if (pingInterval <= 0) {
+        return;
+    }
     this.pingIntervalId = BackgroundTimer.setInterval(() => {
-      const header = createControlHeader(CommandType.PING);
-      this.sendMessage(Buffer.from([header]));
+      this.sendMessage(Buffer.from([CommandType.PING]));
       this.pingTimeoutId = BackgroundTimer.setTimeout(() => {
         this.log('Ping timeout! Server not responding.');
-        this.disconnect(); // Or trigger reconnect
+        this.reconnect();
       }, this.t2 * 1000);
-    }, this.t1 * 1000);
+    }, pingInterval);
   }
 
   private handlePong() {
@@ -297,7 +321,7 @@ class WebSocketService {
     this.clearAckTimer();
     this.ackTimeoutId = BackgroundTimer.setTimeout(() => {
       this.log('ACK timeout! Server did not acknowledge data.');
-      this.disconnect(); // Or trigger reconnect
+      this.reconnect();
     }, this.ackTimeoutDuration);
   }
 
@@ -316,6 +340,10 @@ class WebSocketService {
   private clearAllTimers() {
     this.clearPingTimers();
     this.clearAckTimer();
+    if (this.reconnectTimer) {
+      BackgroundTimer.clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
   }
 }
 
