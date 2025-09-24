@@ -1,6 +1,8 @@
 import { Buffer } from 'buffer';
+import BackgroundActions from 'react-native-background-actions';
 import BackgroundTimer from 'react-native-background-timer';
 import config from '../config/config';
+import webSocketTask from '../tasks/WebSocketTask';
 
 // --- Protocol Constants ---
 const FrameType = { CONTROL: 0, DATA: 1 };
@@ -42,13 +44,11 @@ class WebSocketService {
   private status: SocketStatus = 'disconnected';
   private token: string | null = null;
   private tripId: string | null = null;
-  private isReconnecting = false;
 
   // Timers
   private pingIntervalId: number | null = null;
   private pingTimeoutId: number | null = null;
   private ackTimeoutId: number | null = null;
-  private reconnectTimer: number | null = null;
 
   // Protocol Config
   private n1: number = 10; // ACK threshold
@@ -65,41 +65,79 @@ class WebSocketService {
   public onTripIdReceived: (tripId: string) => void = () => {};
   public onLog: (message: string) => void = () => {};
   public onAuthError: () => void = () => {};
+  public onAuthOk: () => void = () => {};
 
   private log(message: string) {
     console.log(message); // Log to devtools console
     this.onLog(message);   // Log to in-app scroll view
   }
 
-  // --- Public Methods ---
-  connect(token: string) {
-    if (this.ws) this.disconnect();
-    this.log('WebSocket: Attempting to connect...');
-    this.token = token;
-    this.status = 'connecting';
-    this.onStatusChange(this.status);
-
-    this.ws = new WebSocket(`${config.WEBSOCKET_URL}?token=${this.token}`);
-    this.ws.binaryType = 'arraybuffer';
-    this.ws.onopen = this.onOpen.bind(this);
-    this.ws.onmessage = this.onMessage.bind(this);
-    this.ws.onerror = this.onError.bind(this);
-    this.ws.onclose = this.onClose.bind(this);
+  public getStatus(): SocketStatus {
+    return this.status;
   }
 
-  disconnect() {
+  // --- Public Methods ---
+  async start(token: string) {
+    this.token = token;
+    try {
+      await BackgroundActions.start(webSocketTask, {
+        taskName: 'WebSocket',
+        taskTitle: 'FleetMS',
+        taskDesc: 'Tracking your trip',
+        taskIcon: {
+          name: 'ic_launcher',
+          type: 'mipmap',
+        },
+        channelId: 'fleetms-websocket',
+        notificationChannel: {
+          name: 'FleetMS WebSocket',
+          importance: 2, // NotificationManager.IMPORTANCE_DEFAULT
+        },
+        parameters: {
+          token: this.token,
+        },
+        ongoing: true,
+      });
+      this.log('Background service started');
+    } catch (e) {
+      this.log(`Error starting background service: ${e}`);
+    }
+  }
+
+  connect(token: string) {
+    try {
+      if (this.ws) this.ws.close();
+      this.log('WebSocket: Attempting to connect...');
+      this.token = token;
+      this.status = 'connecting';
+      this.onStatusChange(this.status);
+
+      this.ws = new WebSocket(`${config.WEBSOCKET_URL}?token=${this.token}`);
+      this.ws.binaryType = 'arraybuffer';
+      this.ws.onopen = this.onOpen.bind(this);
+      this.ws.onmessage = this.onMessage.bind(this);
+      this.ws.onerror = this.onError.bind(this);
+      this.ws.onclose = this.onClose.bind(this);
+    } catch (e) {
+      this.log(`Error connecting to WebSocket: ${e}`);
+    }
+  }
+
+  async disconnect() {
     this.log('WebSocket: Disconnecting...');
     this.clearAllTimers();
     if (this.ws) {
-      this.ws.onopen = null;
-      this.ws.onmessage = null;
-      this.ws.onerror = null;
-      this.ws.onclose = null;
       this.ws.close();
       this.ws = null;
     }
     this.status = 'disconnected';
     this.onStatusChange(this.status);
+    try {
+      await BackgroundActions.stop();
+      this.log('Background service stopped');
+    } catch (e) {
+      this.log(`Error stopping background service: ${e}`);
+    }
   }
 
   startTrip() {
@@ -175,7 +213,6 @@ class WebSocketService {
     this.log(`WebSocket Error: ${(error as any).message || 'Unknown error'}`);
     this.status = 'error';
     this.onStatusChange(this.status);
-    this.reconnect();
   }
 
   private onClose(event: CloseEvent) {
@@ -189,6 +226,7 @@ class WebSocketService {
   private handleControlMessage(commandType: number, data: Buffer) {
     switch (commandType) {
       case CommandType.AUTH_OK:
+        this.onAuthOk();
         this.requestConfig();
         break;
       case CommandType.CONFIG_ACK:
@@ -199,9 +237,6 @@ class WebSocketService {
             this.t2 = data.readUInt16BE(7);
             this.log(` -> Config received: n1=${this.n1}, t1=${this.t1}, t2=${this.t2}`);
             this.startPing();
-            if (this.isReconnecting && this.tripId) {
-              this.resumeTrip(this.tripId);
-            }
         }
         break;
       case CommandType.START_TRIP_OK:
@@ -211,7 +246,6 @@ class WebSocketService {
         this.onTripIdReceived(this.tripId);
         break;
       case CommandType.RESUME_TRIP_OK:
-        this.isReconnecting = false;
         this.log(' -> Trip resumed successfully.');
         this.sendOfflineBuffer();
         break;
@@ -280,20 +314,6 @@ class WebSocketService {
     }
   }
 
-  private reconnect() {
-    if (this.reconnectTimer || this.status === 'connecting' || this.status === 'connected') {
-      return;
-    }
-    this.disconnect();
-    if (this.token) {
-      this.reconnectTimer = BackgroundTimer.setTimeout(() => {
-        this.log('Attempting to reconnect...');
-        this.reconnectTimer = null;
-        this.connect(this.token!);
-      }, 5000);
-    }
-  }
-
   // --- Timers ---
   private startPing() {
     this.clearPingTimers();
@@ -305,7 +325,8 @@ class WebSocketService {
       this.sendMessage(Buffer.from([CommandType.PING]));
       this.pingTimeoutId = BackgroundTimer.setTimeout(() => {
         this.log('Ping timeout! Server not responding.');
-        this.reconnect();
+        this.status = 'error';
+        this.onStatusChange(this.status);
       }, this.t2 * 1000);
     }, pingInterval);
   }
@@ -321,7 +342,8 @@ class WebSocketService {
     this.clearAckTimer();
     this.ackTimeoutId = BackgroundTimer.setTimeout(() => {
       this.log('ACK timeout! Server did not acknowledge data.');
-      this.reconnect();
+      this.status = 'error';
+      this.onStatusChange(this.status);
     }, this.ackTimeoutDuration);
   }
 
@@ -340,10 +362,6 @@ class WebSocketService {
   private clearAllTimers() {
     this.clearPingTimers();
     this.clearAckTimer();
-    if (this.reconnectTimer) {
-      BackgroundTimer.clearTimeout(this.reconnectTimer);
-      this.reconnectTimer = null;
-    }
   }
 }
 

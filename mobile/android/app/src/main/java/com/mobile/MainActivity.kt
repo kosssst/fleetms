@@ -1,5 +1,7 @@
 package com.mobile
 
+import android.content.Intent
+import com.asterinet.react.bgactions.RNBackgroundActionsTask
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
 import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint.fabricEnabled
@@ -19,4 +21,10 @@ class MainActivity : ReactActivity() {
    */
   override fun createReactActivityDelegate(): ReactActivityDelegate =
       DefaultReactActivityDelegate(this, mainComponentName, fabricEnabled)
+
+  override fun onDestroy() {
+    super.onDestroy()
+    val serviceIntent = Intent(this, RNBackgroundActionsTask::class.java)
+    stopService(serviceIntent)
+  }
 }

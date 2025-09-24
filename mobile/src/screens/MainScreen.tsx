@@ -16,7 +16,7 @@ const MainScreen = () => {
   const styles = createStyles(theme);
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const { connectionStatus: bluetoothStatus } = useBluetooth();
-  const { socketStatus, connectSocket, disconnectSocket, startTrip, pauseTrip, resumeTrip, endTrip } = useSocket();
+  const { socketStatus, startTrip, pauseTrip, resumeTrip, endTrip } = useSocket();
   const [tripStatus, setTripStatus] = useState<'stopped' | 'ongoing' | 'paused'>('stopped');
 
   const { obdData } = useOBD(tripStatus, vehicle?.numberOfCylinders || 0);
