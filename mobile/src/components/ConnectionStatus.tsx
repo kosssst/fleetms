@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, NativeScrollEvent } from 'react-native';
 import { useBluetooth } from '../contexts/BluetoothContext';
 import { useSocket } from '../contexts/SocketContext';
@@ -6,39 +6,32 @@ import { useTheme, Card, Title, Button, Text, MD3Theme } from 'react-native-pape
 
 const ConnectionStatus: React.FC = () => {
   const { connectionStatus: bluetoothStatus, logs: bluetoothLogs = [], startSearch, stopSearch } = useBluetooth();
-  const { socketStatus, logs: socketLogs = [] } = useSocket();
+  const { socketStatus, logs: socketLogs = [], connectSocket, disconnectSocket } = useSocket();
   const theme = useTheme();
   const scrollViewRef = useRef<ScrollView>(null);
-  
-  const scrollState = useRef({
-    isAtBottom: true,
-  }).current;
+  const [userHasScrolled, setUserHasScrolled] = useState(false);
 
   const styles = createStyles(theme);
   const isSearching = bluetoothStatus === 'searching';
 
   // Sort oldest first, so newest appears at the bottom
-  const combinedLogs = [...(socketLogs || []), ...(bluetoothLogs || [])].sort((a, b) => {
+  const combinedLogs = useMemo(() => [...(socketLogs || []), ...(bluetoothLogs || [])].sort((a, b) => {
     const timeA = a.match(/\\\[(.*?)\\\]/)?.[1];
     const timeB = b.match(/\\\[(.*?)\\\]/)?.[1];
     if (timeA && timeB) {
-      return timeA.localeCompare(timeB); // Sort ascending
+      return timeA.localeCompare(timeB);
     }
     return 0;
-  });
-
-  useEffect(() => {
-    // If the user was at the bottom before the new logs were added, scroll to the new bottom.
-    if (scrollState.isAtBottom) {
-      scrollViewRef.current?.scrollToEnd({ animated: true });
-    }
-  }, [combinedLogs, scrollState]);
+  }), [socketLogs, bluetoothLogs]);
 
   const handleScroll = (event: NativeScrollEvent) => {
+    setUserHasScrolled(true);
     const { layoutMeasurement, contentOffset, contentSize } = event;
     const paddingToBottom = 20; // A small tolerance
     const isScrolledToBottom = layoutMeasurement.height + contentOffset.y >= contentSize.height - paddingToBottom;
-    scrollState.isAtBottom = isScrolledToBottom;
+    if (isScrolledToBottom) {
+      setUserHasScrolled(false);
+    }
   };
 
   const getStatusStyle = (status: string) => {
@@ -61,6 +54,22 @@ const ConnectionStatus: React.FC = () => {
           <Title style={styles.title}>
             Socket: {socketStatus}
           </Title>
+        </View>
+        <View style={styles.buttonContainer}>
+          {socketStatus === 'connected' ? (
+            <Button mode="outlined" onPress={disconnectSocket} style={styles.button}>
+              Disconnect Socket
+            </Button>
+          ) : (
+            <Button
+              mode="outlined"
+              onPress={connectSocket}
+              style={styles.button}
+              disabled={socketStatus === 'connecting'}
+            >
+              Connect Socket
+            </Button>
+          )}
         </View>
         <View style={styles.statusContainer}>
           <View style={[styles.circle, getStatusStyle(bluetoothStatus)]} />
@@ -92,9 +101,14 @@ const ConnectionStatus: React.FC = () => {
             nestedScrollEnabled={true}
             onScroll={({ nativeEvent }) => handleScroll(nativeEvent)}
             scrollEventThrottle={400}
+            onContentSizeChange={() => {
+              if (!userHasScrolled) {
+                scrollViewRef.current?.scrollToEnd({ animated: true });
+              }
+            }}
           >
             {combinedLogs.map((log, index) => (
-              <Text key={index} style={styles.logText}>
+              <Text key={`${log}-${index}`} style={styles.logText}>
                 {log}
               </Text>
             ))}
