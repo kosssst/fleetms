@@ -183,7 +183,21 @@ class OBDService {
   }
 
   async initializeELM327(onLog: LogCallback) {
-    const initCommands = ['ATE0', 'ATL0', 'ATS0', 'ATH0', 'ATSP5'];
+    const initCommands = [
+      'ATE0',
+      'ATL0',
+      'ATS0',
+      'ATH0',
+      'ATSP5',
+      'ATDPN',
+      'ATIIA 7A',
+      'ATSH 81 7A F1',
+      'ATST C8',
+      'ATAT1',
+      '81',
+      '10C0',
+      '3E01',
+    ];
     for (const cmd of initCommands) {
       onLog(`Sending init command: ${cmd}`);
       await this.sendCommand(cmd);
