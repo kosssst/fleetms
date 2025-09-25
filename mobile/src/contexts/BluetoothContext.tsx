@@ -1,6 +1,8 @@
-import React, { createContext, useContext, useState, ReactNode, useCallback } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useCallback, useEffect } from 'react';
 import { obdService } from '../services/obd.service';
 import { BluetoothDevice } from 'react-native-bluetooth-classic';
+import BackgroundService from 'react-native-background-actions';
+import { obdTask } from '../tasks/obdTask';
 
 type ConnectionStatus = 'disconnected' | 'searching' | 'connected' | 'error';
 
@@ -14,6 +16,19 @@ interface BluetoothContextData {
 
 const BluetoothContext = createContext<BluetoothContextData>({} as BluetoothContextData);
 
+const backgroundOptions = {
+    taskName: 'FleetMS OBD',
+    taskTitle: 'OBD Connection Active',
+    taskDesc: 'Keeping ELM327 session alive for trip data.',
+    taskIcon: {
+        name: 'ic_launcher',
+        type: 'mipmap',
+    },
+    color: '#009688',
+    linkingURI: 'fleetms://', // To open the app from the notification
+};
+
+
 export const BluetoothProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('disconnected');
   const [device, setDevice] = useState<BluetoothDevice | null>(null);
@@ -26,6 +41,20 @@ export const BluetoothProvider: React.FC<{ children: ReactNode }> = ({ children 
     setLogs(prevLogs => [logMessage, ...prevLogs.slice(0, 100)]);
   }, []);
 
+  const handleStatusChange = useCallback((status: ConnectionStatus) => {
+    if (status === 'connected') {
+        BackgroundService.start(obdTask, backgroundOptions);
+        addLog('Background service started.');
+    } else {
+        if (BackgroundService.isRunning()) {
+            BackgroundService.stop();
+            addLog('Background service stopped.');
+        }
+    }
+    setConnectionStatus(status);
+  }, [addLog]);
+
+
   const startSearch = async () => {
     setLogs([]);
     const permissionsGranted = await obdService.requestPermissions(addLog);
@@ -35,18 +64,27 @@ export const BluetoothProvider: React.FC<{ children: ReactNode }> = ({ children 
     }
 
     obdService.startSearch(
-      (status) => setConnectionStatus(status),
+      handleStatusChange,
       (foundDevice) => setDevice(foundDevice),
-      (message) => addLog(message)
+      addLog
     );
   };
 
   const stopSearch = () => {
     obdService.stopSearch(
-      (status) => setConnectionStatus(status),
-      (message) => addLog(message)
+      handleStatusChange,
+      addLog
     );
   };
+
+  useEffect(() => {
+      // Ensure the service is stopped when the app is fully closed/provider unmounts
+      return () => {
+          if (BackgroundService.isRunning()) {
+              BackgroundService.stop();
+          }
+      }
+  }, []);
 
   return (
     <BluetoothContext.Provider value={{ connectionStatus, device, logs, startSearch, stopSearch }}>
