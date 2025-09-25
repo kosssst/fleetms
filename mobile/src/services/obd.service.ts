@@ -216,6 +216,7 @@ class OBDService {
     if (!this.device) throw new Error('Device not connected');
     this.clearKeepAlive();
     try {
+      await this.device.clear();
       await this.device.write(cmd + '\r');
       return await this.readUntilDelimiter(this.device, timeout);
     } finally {
@@ -267,47 +268,64 @@ class OBDService {
     }
   }
 
+  private isPolling: boolean = false;
+
   startPolling(
     dataCallback: (data: any) => void,
     sendDataCallback: (data: Buffer) => void,
     numberOfCylinders: number,
   ) {
-    if (this.pollingInterval) clearInterval(this.pollingInterval);
+    if (this.isPolling) {
+      return;
+    }
+    this.isPolling = true;
+    this.poll(dataCallback, sendDataCallback, numberOfCylinders);
+  }
 
-    this.pollingInterval = setInterval(async () => {
-      if (!this.device || !this.isTripActive) {
-        return;
-      }
-
+  private async poll(
+    dataCallback: (data: any) => void,
+    sendDataCallback: (data: Buffer) => void,
+    numberOfCylinders: number,
+  ) {
+    while (this.isPolling) {
       const loopStart = Date.now();
-      const allData: any = {};
-      for (const cmd of Object.keys(this.commandsMap)) {
-        const minLen = this.minLenNeeded[cmd] || 0;
-        const payload = await this.pollCommand(cmd, minLen);
-        if (!payload) continue;
 
-        const params = this.commandsMap[cmd];
-        for (const p of params) {
-          const nbytes = Math.max(1, p.numBits / 8);
-          const start = p.startByte - 1;
-          if (start + nbytes > payload.length) continue;
-          const field = payload.slice(start, start + nbytes);
-          const decoder = decoders[p.decoder];
-          if (decoder) allData[p.header] = decoder(field);
+      if (this.device && this.isTripActive) {
+        const allData: any = {};
+        for (const cmd of Object.keys(this.commandsMap)) {
+          if (!this.isPolling) break; // Exit early if polling was stopped
+
+          const minLen = this.minLenNeeded[cmd] || 0;
+          const payload = await this.pollCommand(cmd, minLen);
+          if (!payload) continue;
+
+          const params = this.commandsMap[cmd];
+          for (const p of params) {
+            const nbytes = Math.max(1, p.numBits / 8);
+            const start = p.startByte - 1;
+            if (start + nbytes > payload.length) continue;
+            const field = payload.slice(start, start + nbytes);
+            const decoder = decoders[p.decoder];
+            if (decoder) allData[p.header] = decoder(field);
+          }
+        }
+
+        if (this.isPolling) {
+            allData.fuel_consumption_rate = (allData.fuel_per_stroke || 0) * numberOfCylinders;
+            delete allData.fuel_per_stroke;
+
+            dataCallback(allData);
+            const dataFrame = this.createDataFrame(allData);
+            sendDataCallback(dataFrame);
         }
       }
 
-      allData.fuel_consumption_rate = (allData.fuel_per_stroke || 0) * numberOfCylinders;
-      delete allData.fuel_per_stroke;
-
-      dataCallback(allData);
-      const dataFrame = this.createDataFrame(allData);
-      sendDataCallback(dataFrame);
-
       const elapsed = Date.now() - loopStart;
       const delay = Math.max(0, SAMPLE_PERIOD_SEC * 1000 - elapsed);
-      if (delay > 0) await new Promise(resolve => setTimeout(resolve, delay));
-    }, 100);
+      if (delay > 0) {
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
   }
 
   createDataFrame(data: any): Buffer {
@@ -330,10 +348,7 @@ class OBDService {
   }
 
   stopPolling() {
-    if (this.pollingInterval) {
-      clearInterval(this.pollingInterval);
-      this.pollingInterval = null;
-    }
+    this.isPolling = false;
   }
 
   startTrip() { this.isTripActive = true; }
