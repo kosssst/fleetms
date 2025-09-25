@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode, useCallback } from 'react';
-import { bluetoothService } from '../services/bluetooth.service';
+import { obdService } from '../services/obd.service';
 import { BluetoothDevice } from 'react-native-bluetooth-classic';
 
 type ConnectionStatus = 'disconnected' | 'searching' | 'connected' | 'error';
@@ -21,18 +21,20 @@ export const BluetoothProvider: React.FC<{ children: ReactNode }> = ({ children 
 
   const addLog = useCallback((message: string) => {
     const timestamp = new Date().toLocaleTimeString();
-    setLogs(prevLogs => [`[${timestamp}] ${message}`, ...prevLogs.slice(0, 100)]);
+    const logMessage = `[${timestamp}] ${message}`;
+    console.log(logMessage);
+    setLogs(prevLogs => [logMessage, ...prevLogs.slice(0, 100)]);
   }, []);
 
   const startSearch = async () => {
     setLogs([]);
-    const permissionsGranted = await bluetoothService.requestPermissions(addLog);
+    const permissionsGranted = await obdService.requestPermissions(addLog);
     if (!permissionsGranted) {
       setConnectionStatus('error');
       return;
     }
 
-    bluetoothService.startSearch(
+    obdService.startSearch(
       (status) => setConnectionStatus(status),
       (foundDevice) => setDevice(foundDevice),
       (message) => addLog(message)
@@ -40,7 +42,7 @@ export const BluetoothProvider: React.FC<{ children: ReactNode }> = ({ children 
   };
 
   const stopSearch = () => {
-    bluetoothService.stopSearch(
+    obdService.stopSearch(
       (status) => setConnectionStatus(status),
       (message) => addLog(message)
     );

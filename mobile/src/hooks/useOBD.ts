@@ -1,57 +1,44 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { obdService } from '../services/obd.service';
-import { Alert } from 'react-native';
-import { Buffer } from 'buffer';
 import { webSocketService } from '../services/WebSocketService';
+import { Buffer } from 'buffer';
 
-export const useOBD = (tripStatus: 'stopped' | 'ongoing' | 'paused', numberOfCylinders: number) => {
-  const [isConnected, setIsConnected] = useState(false);
+export const useOBD = (
+  tripStatus: 'stopped' | 'ongoing' | 'paused',
+  numberOfCylinders: number,
+) => {
   const [obdData, setObdData] = useState<any>(null);
 
-  const connectToDevice = async () => {
-    const success = await obdService.connectToDevice();
-    setIsConnected(success);
-    if (!success) {
-      Alert.alert('Connection Failed', 'Could not connect to ELM327 device.');
-    }
-  };
+  const sendDataToServer = useCallback((data: Buffer) => {
+    webSocketService.sendDataFrames([data]);
+  }, []);
 
   useEffect(() => {
-    if (tripStatus === 'ongoing') {
-      obdService.startPolling(setObdData, numberOfCylinders);
-    } else {
+    if (numberOfCylinders > 0) {
+      if (tripStatus === 'ongoing') {
+        obdService.startTrip();
+        obdService.startPolling(
+          setObdData,
+          sendDataToServer,
+          numberOfCylinders,
+        );
+      } else {
+        obdService.stopTrip();
+        // Polling is kept alive to send tester present command
+        // but we can stop it completely if trip is stopped
+        if (tripStatus === 'stopped') {
+          obdService.stopPolling();
+        }
+      }
+    }
+
+    // Cleanup polling on component unmount
+    return () => {
       obdService.stopPolling();
-    }
-  }, [tripStatus, numberOfCylinders]);
-
-  useEffect(() => {
-    if (tripStatus === 'ongoing' && obdData) {
-      const dataFrame = Buffer.alloc(32);
-      const timestamp = BigInt(new Date().getTime());
-      /* eslint-disable no-bitwise */
-      const high = Number(timestamp >> 32n);
-      const low = Number(timestamp & 0xFFFFFFFFn);
-      /* eslint-enable no-bitwise */
-
-      dataFrame.writeUInt32BE(high, 0);
-      dataFrame.writeUInt32BE(low, 4);
-      
-      // Populate the rest of the data frame with real obdData...
-      dataFrame.writeUInt16BE(obdData.vehicle_speed || 0, 20);
-      dataFrame.writeUInt16BE(obdData.engine_speed || 0, 22);
-      dataFrame.writeUInt16BE(obdData.accelerator_position || 0, 24);
-      dataFrame.writeUInt16BE(obdData.engine_coolant_temp || 0, 26);
-      dataFrame.writeUInt16BE(obdData.intake_air_temp || 0, 28);
-      dataFrame.writeUInt16BE(obdData.fuel_consumption_rate || 0, 30);
-
-      webSocketService.sendDataFrames([dataFrame]);
-    }
-  }, [obdData, tripStatus]);
+    };
+  }, [tripStatus, numberOfCylinders, sendDataToServer]);
 
   return {
-    isConnected,
     obdData,
-    connectToDevice,
-    disconnectFromDevice: obdService.disconnect,
   };
 };

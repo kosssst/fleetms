@@ -1,15 +1,13 @@
-import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
+import React, {
+  createContext,
+  useContext,
+  ReactNode,
+  useEffect,
+} from 'react';
 import { webSocketService } from '../services/WebSocketService';
-import { useAuth } from './AuthContext';
-
-type SocketStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
 
 interface SocketContextData {
-  socketStatus: SocketStatus;
-  tripId: string | null;
-  logs: string[];
-  connectSocket: () => void;
-  disconnectSocket: () => void;
+  socketStatus: 'connected' | 'disconnected';
   startTrip: () => void;
   pauseTrip: () => void;
   resumeTrip: () => void;
@@ -18,64 +16,42 @@ interface SocketContextData {
 
 const SocketContext = createContext<SocketContextData>({} as SocketContextData);
 
-export const SocketProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const { token, logout } = useAuth();
-  const [socketStatus, setSocketStatus] = useState<SocketStatus>('disconnected');
-  const [tripId, setTripId] = useState<string | null>(null);
-  const [logs, setLogs] = useState<string[]>([]);
+export const SocketProvider: React.FC<{ children: ReactNode }> = ({
+  children,
+}) => {
+  useEffect(() => {
+    webSocketService.connect();
 
-  const addLog = useCallback((message: string) => {
-    const timestamp = new Date().toLocaleTimeString();
-    setLogs(prevLogs => [`[${timestamp}] ${message}`, ...prevLogs.slice(0, 100)]);
+    return () => {
+      webSocketService.disconnect();
+    };
   }, []);
 
-  // Effect to set up service callbacks
-  useEffect(() => {
-    webSocketService.onStatusChange = setSocketStatus;
-    webSocketService.onTripIdReceived = setTripId;
-    webSocketService.onLog = addLog;
-    webSocketService.onAuthError = () => {
-      addLog("Authentication failed. Logging out.");
-      logout();
-    };
-  }, [addLog, logout]);
-
-  const connectSocket = () => {
-    if (token) {
-      webSocketService.start(token);
-    }
+  const startTrip = () => {
+    webSocketService.startTrip();
   };
 
-  const disconnectSocket = () => {
-    webSocketService.disconnect();
+  const pauseTrip = () => {
+    webSocketService.pauseTrip();
   };
 
-  // Effect for handling trip resumption after connection
-  useEffect(() => {
-    if (socketStatus === 'connected') {
-      webSocketService.onAuthOk = () => {
-        if (tripId) {
-          addLog('Socket authenticated, resuming trip...');
-          webSocketService.resumeTrip(tripId);
-        }
-      };
-    }
-  }, [socketStatus, tripId, addLog]);
-
-  const startTrip = () => webSocketService.startTrip();
-  const pauseTrip = () => webSocketService.pauseTrip();
   const resumeTrip = () => {
-    if (tripId) {
-      webSocketService.resumeTrip(tripId);
-    }
+    webSocketService.resumeTrip();
   };
+
   const endTrip = () => {
     webSocketService.endTrip();
-    setTripId(null);
   };
 
   return (
-    <SocketContext.Provider value={{ socketStatus, tripId, logs, connectSocket, disconnectSocket, startTrip, pauseTrip, resumeTrip, endTrip }}>
+    <SocketContext.Provider
+      value={{
+        socketStatus: 'connected',
+        startTrip,
+        pauseTrip,
+        resumeTrip,
+        endTrip,
+      }}>
       {children}
     </SocketContext.Provider>
   );
