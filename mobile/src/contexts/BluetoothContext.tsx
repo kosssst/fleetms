@@ -42,13 +42,11 @@ export const BluetoothProvider: React.FC<{ children: ReactNode }> = ({ children 
   }, []);
 
   const handleStatusChange = useCallback((status: ConnectionStatus) => {
-    if (status === 'connected') {
-        BackgroundService.start(obdTask, backgroundOptions);
-        addLog('Background service started.');
-    } else {
+    // The service is started before the search. We only stop it on final failure/disconnection.
+    if (status === 'disconnected' || status === 'error') {
         if (BackgroundService.isRunning()) {
             BackgroundService.stop();
-            addLog('Background service stopped.');
+            addLog('Background service stopped due to status change.');
         }
     }
     setConnectionStatus(status);
@@ -63,6 +61,18 @@ export const BluetoothProvider: React.FC<{ children: ReactNode }> = ({ children 
       return;
     }
 
+    // Start the background service BEFORE initiating the search
+    try {
+        if (!BackgroundService.isRunning()) {
+            await BackgroundService.start(obdTask, backgroundOptions);
+            addLog('Background service started for device search.');
+        }
+    } catch (e) {
+        addLog('Failed to start background service.');
+        console.error(e);
+        return;
+    }
+
     obdService.startSearch(
       handleStatusChange,
       (foundDevice) => setDevice(foundDevice),
@@ -75,6 +85,11 @@ export const BluetoothProvider: React.FC<{ children: ReactNode }> = ({ children 
       handleStatusChange,
       addLog
     );
+    // Also ensure service is stopped if user manually stops.
+    if (BackgroundService.isRunning()) {
+        BackgroundService.stop();
+        addLog('Background service stopped by user.');
+    }
   };
 
   useEffect(() => {

@@ -136,7 +136,17 @@ class OBDService {
             return;
           }
         } catch (error: any) {
-          onLog(`Failed to interrogate ${device.name}: ${error.message}`);
+          onLog(`Failed during interrogation/initialization of ${device.name}: ${error.message}`);
+          // If we had a connected device but failed during init, we must clean up.
+          if (this.device) {
+            this.clearKeepAlive();
+            try {
+              await this.device.disconnect();
+            } catch (disconnectError) {
+              onLog(`Error during cleanup disconnect: ${disconnectError}`);
+            }
+            this.device = null;
+          }
         }
       }
       if (this.isSearching) {
