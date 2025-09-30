@@ -1,12 +1,12 @@
 import React, { useMemo, useState, useRef } from 'react';
-import { View, StyleSheet, ScrollView, NativeScrollEvent, PermissionsAndroid, Platform } from 'react-native';
+import { View, StyleSheet, ScrollView, NativeScrollEvent } from 'react-native';
 import { useBluetooth } from '../contexts/BluetoothContext';
 import { useSocket } from '../contexts/SocketContext';
 import { useTheme, Card, Title, Button, Text, MD3Theme } from 'react-native-paper';
 
 const ConnectionStatus: React.FC = () => {
   const { connectionStatus: bluetoothStatus, logs: bluetoothLogs = [], startSearch, stopSearch } = useBluetooth();
-  const { socketStatus, logs: socketLogs = [], connectSocket, disconnectSocket } = useSocket();
+  const { socketStatus, logs: socketLogs = [] } = useSocket();
   const theme = useTheme();
   const scrollViewRef = useRef<ScrollView>(null);
   const [userHasScrolled, setUserHasScrolled] = useState(false);
@@ -14,41 +14,10 @@ const ConnectionStatus: React.FC = () => {
   const styles = createStyles(theme);
   const isSearching = bluetoothStatus === 'searching';
 
-  const requestPermissions = async () => {
-    if (Platform.OS === 'android') {
-      try {
-        const granted = await PermissionsAndroid.requestMultiple([
-          PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
-          PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
-          PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
-        ]);
-        return (
-          granted['android.permission.BLUETOOTH_SCAN'] === PermissionsAndroid.RESULTS.GRANTED &&
-          granted['android.permission.BLUETOOTH_CONNECT'] === PermissionsAndroid.RESULTS.GRANTED &&
-          granted['android.permission.POST_NOTIFICATIONS'] === PermissionsAndroid.RESULTS.GRANTED
-        );
-      } catch (err) {
-        console.warn(err);
-        return false;
-      }
-    }
-    return true;
-  };
-
-  const handleConnect = async () => {
-    const hasPermission = await requestPermissions();
-    if (hasPermission) {
-      connectSocket();
-    } else {
-      // Handle the case where the user denies the permission
-      console.log('One or more permissions were denied');
-    }
-  };
-
   // Sort oldest first, so newest appears at the bottom
   const combinedLogs = useMemo(() => [...(socketLogs || []), ...(bluetoothLogs || [])].sort((a, b) => {
-    const timeA = a.match(/\\\[(.*?)\\\]/)?.[1];
-    const timeB = b.match(/\\\[(.*?)\\\]/)?.[1];
+    const timeA = a.match(/\\[(.*?)\\]/)?.[1];
+    const timeB = b.match(/\\[(.*?)\\]/)?.[1];
     if (timeA && timeB) {
       return timeA.localeCompare(timeB);
     }
@@ -85,22 +54,6 @@ const ConnectionStatus: React.FC = () => {
           <Title style={styles.title}>
             Socket: {socketStatus}
           </Title>
-        </View>
-        <View style={styles.buttonContainer}>
-          {socketStatus === 'connected' ? (
-            <Button mode="outlined" onPress={disconnectSocket} style={styles.button}>
-              Disconnect Socket
-            </Button>
-          ) : (
-            <Button
-              mode="outlined"
-              onPress={handleConnect}
-              style={styles.button}
-              disabled={socketStatus === 'connecting'}
-            >
-              Connect Socket
-            </Button>
-          )}
         </View>
         <View style={styles.statusContainer}>
           <View style={[styles.circle, getStatusStyle(bluetoothStatus)]} />

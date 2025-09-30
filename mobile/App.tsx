@@ -1,9 +1,22 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { PaperProvider } from 'react-native-paper';
-import { AuthProvider } from './src/contexts/AuthContext';
-import { SocketProvider } from './src/contexts/SocketContext';
+import { AuthProvider, useAuth } from './src/contexts/AuthContext';
+import { SocketProvider, useSocket } from './src/contexts/SocketContext';
 import { BluetoothProvider } from './src/contexts/BluetoothContext';
 import AppNavigator from './src/navigation/AppNavigator';
+
+const AppContent = () => {
+  const { user, token } = useAuth();
+  const { authenticate } = useSocket();
+
+  useEffect(() => {
+    if (user && token) {
+      authenticate(token);
+    }
+  }, [user, token, authenticate]);
+
+  return <AppNavigator />;
+};
 
 const App = () => {
   return (
@@ -11,7 +24,7 @@ const App = () => {
       <AuthProvider>
         <SocketProvider>
           <BluetoothProvider>
-            <AppNavigator />
+            <AppContent />
           </BluetoothProvider>
         </SocketProvider>
       </AuthProvider>

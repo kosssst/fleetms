@@ -1,16 +1,39 @@
 import BackgroundService from 'react-native-background-actions';
+import { obdService } from '../services/obd.service';
+import { webSocketService } from '../services/WebSocketService';
 
-// You can do anything in your task such as network requests, timers and so on,
-// as long as it doesn't touch UI. That's amazing!
 const sleep = (time: number) => new Promise((resolve) => setTimeout(() => resolve(null), time));
 
-export const obdTask = async (_taskDataArguments: any) => {
-    await new Promise(async (_resolve) => {
-        // This loop is what keeps the service alive.
-        // The actual work (polling, keep-alive) is handled by timers inside obd.service.ts,
-        // so this loop can be very simple.
-        for (let i = 0; BackgroundService.isRunning(); i++) {
-            await sleep(2000); // Sleep for 2 seconds
+export const obdTask = async (taskDataArguments?: { numberOfCylinders: number }) => {
+    if (!taskDataArguments) {
+        return;
+    }
+
+    const { numberOfCylinders } = taskDataArguments;
+
+    await new Promise(async (resolve) => {
+        obdService.startTrip();
+
+        const dataCallback = (data: any) => {
+            // We can potentially update the notification with live data here
+            // For now, we just log it.
+            console.log('OBD Data:', data);
+        };
+
+        const sendDataCallback = (dataFrame: Buffer) => {
+            if (webSocketService.isConnected()) {
+                webSocketService.sendDataFrames([dataFrame]);
+            }
+        };
+
+        obdService.startPolling(dataCallback, sendDataCallback, numberOfCylinders);
+
+        while (BackgroundService.isRunning()) {
+            await sleep(2000);
         }
+
+        obdService.stopTrip();
+        obdService.stopPolling();
+        resolve(null);
     });
 };

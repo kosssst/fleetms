@@ -9,6 +9,21 @@ import VehicleInfo from '../components/VehicleInfo';
 import { getAssignedVehicle } from '../services/vehicle.service';
 import { Vehicle } from '../types/vehicle.types';
 import { useOBD } from '../hooks/useOBD';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import BackgroundService from 'react-native-background-actions';
+import { obdTask } from '../tasks/obdTask';
+
+const backgroundOptions = {
+  taskName: 'FleetMS OBD',
+  taskTitle: 'OBD Connection Active',
+  taskDesc: 'Polling for trip data.',
+  taskIcon: {
+    name: 'ic_launcher',
+    type: 'mipmap',
+  },
+  color: '#009688',
+  linkingURI: 'fleetms://',
+};
 
 const MainScreen = () => {
   const { user, logout } = useAuth();
@@ -27,12 +42,30 @@ const MainScreen = () => {
       setVehicle(assignedVehicle);
     };
 
+    const checkActiveTrip = async () => {
+      const activeTripId = await AsyncStorage.getItem('activeTripId');
+      if (activeTripId) {
+        setTripStatus('ongoing'); // Or 'paused' if you store that state as well
+      }
+    };
+
     fetchVehicle();
+    checkActiveTrip();
   }, []);
 
-  const handleStartTrip = () => {
-    startTrip();
-    setTripStatus('ongoing');
+  const handleStartTrip = async () => {
+    const tripId = await startTrip();
+    if (tripId) {
+      try {
+        await BackgroundService.start(obdTask, {
+          ...backgroundOptions,
+          taskData: { tripId, numberOfCylinders: vehicle?.numberOfCylinders || 0 },
+        });
+        setTripStatus('ongoing');
+      } catch (e) {
+        console.error('Failed to start background service', e);
+      }
+    }
   };
 
   const handlePauseTrip = () => {
@@ -40,13 +73,16 @@ const MainScreen = () => {
     setTripStatus('paused');
   };
 
-  const handleResumeTrip = () => {
-    resumeTrip();
+  const handleResumeTrip = async () => {
+    await resumeTrip();
     setTripStatus('ongoing');
   };
 
-  const handleEndTrip = () => {
-    endTrip();
+  const handleEndTrip = async () => {
+    await endTrip();
+    if (BackgroundService.isRunning()) {
+      await BackgroundService.stop();
+    }
     setTripStatus('stopped');
   };
 
