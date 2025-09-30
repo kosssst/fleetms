@@ -38,6 +38,7 @@ const getFrameType = (header: number) => (header >> 7) & 0x01;
 class ClientConnection {
   private ws: WebSocket;
   private isAuthenticated = false;
+  private userId: Types.ObjectId | null = null; // <-- Added
   private vehicleId: Types.ObjectId | null = null;
   private tripId: Types.ObjectId | null = null;
   private n1: number = 10; // Default ACK threshold
@@ -56,7 +57,7 @@ class ClientConnection {
     const frameType = getFrameType(header);
 
     if (frameType === FrameType.CONTROL) {
-      const commandType = header; // For CONTROL frames, the header IS the command
+      const commandType = header;
       console.log(`Received CONTROL: ${getCommandName(commandType)}`);
       await this.handleControlMessage(commandType, message);
     } else {
@@ -96,6 +97,7 @@ class ClientConnection {
           }
 
           this.isAuthenticated = true;
+          this.userId = user._id as Types.ObjectId; // <-- Added
           this.vehicleId = vehicle._id as Types.ObjectId;
 
           const sessionId = Buffer.from('mock-session-id', 'utf-8');
@@ -131,7 +133,22 @@ class ClientConnection {
         break;
 
       case CommandType.START_TRIP_REQ:
-        const newTrip = new TripModel({ vehicleId: this.vehicleId, startTime: new Date(), dataPoints: [], status: 'ongoing' });
+        if (!this.userId) { // <-- Added check
+          return this.ws.close(1008, 'User not authenticated for trip start');
+        }
+        const user = await UserModel.findById(this.userId); // <-- Added user fetch
+        if (!user) {
+          return this.ws.close(1008, 'User not found');
+        }
+
+        const newTrip = new TripModel({ 
+          vehicleId: this.vehicleId, 
+          driverId: this.userId, // <-- Added
+          companyId: user.companyId, // <-- Added
+          startTime: new Date(), 
+          dataPoints: [], 
+          status: 'ongoing' 
+        });
         await newTrip.save();
         this.tripId = newTrip._id as Types.ObjectId;
 

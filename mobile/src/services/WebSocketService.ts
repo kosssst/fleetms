@@ -109,7 +109,7 @@ class WebSocketService {
     this.socket.onmessage = (event) => {
       this.resetInactivityTimer();
       const data = Buffer.from(event.data);
-      this.log(`⬇️ RECV: ${parseMessage(data)} | ${data.toString('hex')}`);
+      this.log(`⬇️ RECV: ${parseMessage(data.slice(0, 1))} | ${data.toString('hex')}`);
       this.handleMessage(data);
     };
   }
@@ -117,7 +117,7 @@ class WebSocketService {
   private sendMessage(data: Buffer) {
     if (this.isConnected()) {
       this.resetInactivityTimer();
-      this.log(`⬆️ SEND: ${parseMessage(data)} | ${data.toString('hex')}`);
+      this.log(`⬆️ SEND: ${parseMessage(data.slice(0, 1))} | ${data.toString('hex')}`);
       this.socket?.send(data);
     } else {
       this.log(`Socket: Cannot send, not connected. Message: ${data.toString('hex')}`);
@@ -239,9 +239,14 @@ class WebSocketService {
 
   sendDataFrames(frames: Buffer[]) {
     const numFrames = frames.length;
+    if (numFrames === 0 || numFrames > 63) {
+      this.log('Socket: Invalid number of data frames to send.');
+      return;
+    }
     const header = Buffer.alloc(1);
+    // Set Frame Type to 1 (DATA) and add the number of frames
     // eslint-disable-next-line no-bitwise
-    header.writeUInt8(0x01 | (numFrames << 2), 0);
+    header.writeUInt8((1 << 7) | (numFrames & 0x3F), 0);
     const message = Buffer.concat([header, ...frames]);
     this.sendMessage(message);
   }
