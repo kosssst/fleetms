@@ -168,28 +168,54 @@ class OBDService {
     let connectedDevice: BluetoothDevice | null = null;
     try {
       connectedDevice = await RNBluetoothClassic.connectToDevice(device.address, {
-        delimiter: '>',           // IMPORTANT: frame responses by '>'
-        charset: 'ascii',         // optional but good hygiene
+        delimiter: '>',
+        charset: 'ascii',
       });
+
+      await this.drainInitialPrompt(connectedDevice);  // swallow initial ">"
+
       onLog(`Connected to ${device.name}.`);
+
+      // --- Attempt 1: send ATI and collect for a short window
       await connectedDevice.write('ATI\r');
-      const response = await this.readUntilDelimiter(connectedDevice);
-      if (response.includes('ELM327')) {
-        return connectedDevice;
-      } else {
-        await connectedDevice.disconnect();
-        return null;
-      }
+      let response = await this.readUntilDelimiter(
+        connectedDevice,
+        3500,                               // a bit generous for the first reply
+        { ignoreBarePromptOnce: true, accumulateMs: 400 }   // <— key
+      );
+
+      // Be case-insensitive (some clones use lower/upper variations)
+      if (response.toUpperCase().includes('ELM327')) return connectedDevice;
+
+      // --- Optional Attempt 2: one more ATI with a fresh buffer (no other commands)
+      await connectedDevice.clear();
+      await new Promise(r => setTimeout(r, 120));
+      await connectedDevice.write('ATI\r');
+      response = await this.readUntilDelimiter(
+        connectedDevice,
+        3500,
+        { ignoreBarePromptOnce: true, accumulateMs: 500 }
+      );
+
+      onLog(`ATI response (1st): ${JSON.stringify(response)}`);
+
+      if (response.toUpperCase().includes('ELM327')) return connectedDevice;
+
+      await connectedDevice.disconnect();
+      return null;
+
     } catch (error) {
       if (connectedDevice) {
-        try {
-          await connectedDevice.disconnect();
-        } catch (disconnectError) {
-          onLog(`Error disconnecting after failed interrogation: ${disconnectError}`);
-        }
+        try { await connectedDevice.disconnect(); } catch {}
       }
       throw error;
     }
+  }
+
+  private async drainInitialPrompt(dev: BluetoothDevice) {
+    try { await dev.clear(); } catch {}
+    // tiny settle so late bytes from the OS/prompt get delivered
+    await new Promise(res => setTimeout(res, 60));
   }
 
   async initializeELM327(onLog: LogCallback) {
@@ -241,29 +267,56 @@ class OBDService {
     this.clearKeepAlive();
     try {
       await this.device.clear();
+      const readP = this.readUntilDelimiter(this.device, timeout ?? 1500);
       await this.device.write(cmd + '\r');
-      return await this.readUntilDelimiter(this.device, timeout);
+      await new Promise(r => setTimeout(r, 60));
+      return await readP;
     } finally {
       this.scheduleKeepAlive();
     }
   }
 
-  private readUntilDelimiter(device: BluetoothDevice, timeoutMs = 5000): Promise<string> {
+  private readUntilDelimiter(
+    device: BluetoothDevice,
+    timeoutMs = 5000,
+    options?: { ignoreBarePromptOnce?: boolean; accumulateMs?: number }
+  ): Promise<string> {
+    const ignoreBare = options?.ignoreBarePromptOnce ?? false;
+    const accumulateMs = options?.accumulateMs ?? 0;
+
     return new Promise((resolve, reject) => {
       let resolved = false;
-      const t = setTimeout(() => {
-        if (!resolved) {
-          sub.remove();
-          reject(new Error('Timeout waiting for prompt ">"'));
-        }
-      }, timeoutMs);
+      let sawBarePrompt = false;
+      let buf = '';
 
-      const sub = device.onDataReceived(event => {
-        // with delimiter mode, event.data already ends at '>'
+      const finish = (ok: boolean, data?: string, err?: Error) => {
+        if (resolved) return;
         resolved = true;
         clearTimeout(t);
+        if (accTimer) clearTimeout(accTimer);
         sub.remove();
-        resolve(event.data); // e.g. "ATI\rELM327 v1.5\r>"
+        ok ? resolve(data || '') : reject(err!);
+      };
+
+      const t = setTimeout(() => finish(false, undefined, new Error('Timeout waiting for ">"')), timeoutMs);
+      const accTimer = accumulateMs
+        ? setTimeout(() => finish(true, buf || ''), accumulateMs)
+        : null;
+
+      const sub = device.onDataReceived(event => {
+        const data = String(event.data ?? '');
+
+        // Ignore a first bare ">" (with optional CR/LF) once
+        if (ignoreBare && !sawBarePrompt && /^\s*>\s*$/m.test(data)) {
+          sawBarePrompt = true;
+          return;
+        }
+
+        buf += data;
+
+        // If not accumulating, return immediately on the first frame
+        if (!accumulateMs) finish(true, buf);
+        // else: keep collecting until accumulateMs elapses
       });
     });
   }
