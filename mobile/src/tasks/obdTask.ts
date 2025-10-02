@@ -1,24 +1,30 @@
 import BackgroundService from 'react-native-background-actions';
 import { obdService } from '../services/obd.service';
+import { locationService } from '../services/location.service';
 import { webSocketService } from '../services/WebSocketService';
+import { Buffer } from 'buffer';
 
 const sleep = (time: number) => new Promise((resolve) => setTimeout(() => resolve(null), time));
 
-export const obdTask = async (taskDataArguments?: { numberOfCylinders: number }) => {
-    if (!taskDataArguments) {
+export const obdTask = async (taskParameters?: { numberOfCylinders: number }) => {
+    if (!taskParameters) {
         return;
     }
 
-    const { numberOfCylinders } = taskDataArguments;
+    const { numberOfCylinders } = taskParameters;
 
     await new Promise(async (resolve) => {
-        obdService.startTrip();
+        locationService.startLocationTracking();
 
-        const dataCallback = (data: any) => {
-            // We can potentially update the notification with live data here
-            // For now, we just log it.
-            console.log('OBD Data:', data);
-        };
+        while (locationService.getCurrentLocation() === null) {
+            if (!BackgroundService.isRunning()) {
+                locationService.stopLocationTracking();
+                return resolve(null);
+            }
+            await sleep(1000);
+        }
+
+        obdService.startTrip();
 
         const sendDataCallback = (dataFrame: Buffer) => {
             if (webSocketService.isConnected()) {
@@ -26,14 +32,26 @@ export const obdTask = async (taskDataArguments?: { numberOfCylinders: number })
             }
         };
 
-        obdService.startPolling(dataCallback, sendDataCallback, numberOfCylinders);
+        obdService.startPolling(
+            sendDataCallback,
+            numberOfCylinders,
+            () => {
+                const location = locationService.getCurrentLocation();
+                return {
+                    latitude: location?.coords.latitude,
+                    longitude: location?.coords.longitude,
+                    altitude: location?.coords.altitude,
+                };
+            },
+        );
 
         while (BackgroundService.isRunning()) {
-            await sleep(2000);
+            await sleep(5000);
         }
 
         obdService.stopTrip();
         obdService.stopPolling();
+        locationService.stopLocationTracking();
         resolve(null);
     });
 };

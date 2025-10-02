@@ -43,6 +43,8 @@ interface MinLenMap {
   [command: string]: number;
 }
 
+type DataCallback = (data: any) => void;
+
 // --- OBDService Class ---
 class OBDService {
   private device: BluetoothDevice | null = null;
@@ -50,6 +52,7 @@ class OBDService {
   private isTripActive: boolean = false;
   private isSearching: boolean = false;
   private keepAliveTimer: any = null;
+  private dataListeners: Set<DataCallback> = new Set();
 
   private commandsMap: CommandMap = {};
   private headersOrder: string[] = [];
@@ -57,6 +60,18 @@ class OBDService {
 
   constructor() {
     this.loadCommandTable();
+  }
+
+  public registerListener(listener: DataCallback) {
+    this.dataListeners.add(listener);
+  }
+
+  public unregisterListener(listener: DataCallback) {
+    this.dataListeners.delete(listener);
+  }
+
+  private notifyListeners(data: any) {
+    this.dataListeners.forEach(listener => listener(data));
   }
 
   private loadCommandTable() {
@@ -348,21 +363,21 @@ class OBDService {
   private isPolling: boolean = false;
 
   startPolling(
-    dataCallback: (data: any) => void,
     sendDataCallback: (data: Buffer) => void,
     numberOfCylinders: number,
+    getLocation: () => { latitude?: number; longitude?: number; altitude?: number },
   ) {
     if (this.isPolling) {
       return;
     }
     this.isPolling = true;
-    this.poll(dataCallback, sendDataCallback, numberOfCylinders);
+    this.poll(sendDataCallback, numberOfCylinders, getLocation);
   }
 
   private async poll(
-    dataCallback: (data: any) => void,
     sendDataCallback: (data: Buffer) => void,
     numberOfCylinders: number,
+    getLocation: () => { latitude?: number; longitude?: number; altitude?: number },
   ) {
     while (this.isPolling) {
       const loopStart = Date.now();
@@ -391,8 +406,14 @@ class OBDService {
             allData.fuel_consumption_rate = (allData.fuel_per_stroke || 0) * numberOfCylinders;
             delete allData.fuel_per_stroke;
 
-            dataCallback(allData);
-            const dataFrame = this.createDataFrame(allData);
+            this.notifyListeners(allData);
+            const location = getLocation();
+            const dataFrame = this.createDataFrame(
+                allData,
+                location.latitude,
+                location.longitude,
+                location.altitude,
+            );
             sendDataCallback(dataFrame);
         }
       }
@@ -405,16 +426,21 @@ class OBDService {
     }
   }
 
-  createDataFrame(data: any): Buffer {
+  createDataFrame(
+      data: any,
+      latitude?: number,
+      longitude?: number,
+      altitude?: number,
+  ): Buffer {
     const frame = Buffer.alloc(32);
     const timestamp = Date.now();
     const high = Math.floor(timestamp / 4294967296);
     const low = timestamp % 4294967296;
     frame.writeUInt32BE(high, 0);
     frame.writeUInt32BE(low, 4);
-    frame.writeInt32BE(0, 8);
-    frame.writeInt32BE(0, 12);
-    frame.writeInt32BE(0, 16);
+    frame.writeInt32BE(latitude ? Math.round(latitude * 1e7) : 0, 8);
+    frame.writeInt32BE(longitude ? Math.round(longitude * 1e7) : 0, 12);
+    frame.writeInt32BE(altitude ? Math.round(altitude * 100) : 0, 16);
     frame.writeUInt16BE(data.vehicle_speed || 0, 20);
     frame.writeUInt16BE(data.engine_speed || 0, 22);
     frame.writeUInt16BE(data.accelerator_position || 0, 24);
@@ -428,8 +454,12 @@ class OBDService {
     this.isPolling = false;
   }
 
-  startTrip() { this.isTripActive = true; }
-  stopTrip() { this.isTripActive = false; }
+  startTrip() {
+    this.isTripActive = true;
+  }
+  stopTrip() {
+    this.isTripActive = false;
+  }
 
   async stopSearch(onStatusChange: StatusCallback, onLog: LogCallback) {
     this.isSearching = false;

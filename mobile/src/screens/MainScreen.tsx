@@ -13,7 +13,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import BackgroundService from 'react-native-background-actions';
 import { obdTask } from '../tasks/obdTask';
 
-const backgroundOptions = {
+import { obdService } from '../services/obd.service';
+
+import { locationService } from '../services/location.service';
+
+const obdBackgroundOptions = {
   taskName: 'FleetMS OBD',
   taskTitle: 'OBD Connection Active',
   taskDesc: 'Polling for trip data.',
@@ -34,9 +38,11 @@ const MainScreen = () => {
   const { socketStatus, startTrip, pauseTrip, resumeTrip, endTrip } = useSocket();
   const [tripStatus, setTripStatus] = useState<'stopped' | 'ongoing' | 'paused'>('stopped');
 
-  const { obdData } = useOBD(tripStatus, vehicle?.numberOfCylinders || 0);
+  const { obdData } = useOBD();
 
   useEffect(() => {
+    locationService.requestLocationPermission();
+
     const fetchVehicle = async () => {
       const assignedVehicle = await getAssignedVehicle();
       setVehicle(assignedVehicle);
@@ -57,10 +63,14 @@ const MainScreen = () => {
     const tripId = await startTrip();
     if (tripId) {
       try {
-        await BackgroundService.start(obdTask, {
-          ...backgroundOptions,
-          taskData: { tripId, numberOfCylinders: vehicle?.numberOfCylinders || 0 },
-        });
+        const options = {
+          ...obdBackgroundOptions,
+          parameters: {
+            tripId,
+            numberOfCylinders: vehicle?.numberOfCylinders || 0,
+          },
+        };
+        await BackgroundService.start(obdTask, options);
         setTripStatus('ongoing');
       } catch (e) {
         console.error('Failed to start background service', e);
@@ -79,10 +89,11 @@ const MainScreen = () => {
   };
 
   const handleEndTrip = async () => {
-    await endTrip();
+    obdService.stopTrip();
     if (BackgroundService.isRunning()) {
       await BackgroundService.stop();
     }
+    await endTrip();
     setTripStatus('stopped');
   };
 
