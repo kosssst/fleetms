@@ -424,7 +424,6 @@ class OBDService {
 
         if (this.isPolling && this.isTripActive) {
             allData.fuel_consumption_rate = (allData.fuel_per_stroke || 0) * numberOfCylinders;
-            delete allData.fuel_per_stroke;
 
             this.notifyListeners(allData);
             const location = getLocation();
@@ -466,7 +465,8 @@ class OBDService {
     frame.writeUInt16BE(data.accelerator_position || 0, 24);
     frame.writeUInt16BE(data.engine_coolant_temp || 0, 26);
     frame.writeUInt16BE(data.intake_air_temp || 0, 28);
-    frame.writeUInt16BE(data.fuel_consumption_rate || 0, 30);
+    const fuelRateMls = (data.fuel_consumption_rate || 0) * (1000 / 3600);
+    frame.writeUInt16BE(Math.round(fuelRateMls * 1000), 30);
     return frame;
   }
 

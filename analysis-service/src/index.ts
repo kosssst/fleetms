@@ -87,7 +87,7 @@ const calculateSummary = (samples: ISample[]) => {
       const timeDiff = (sample.timestamp.getTime() - prevSample.timestamp.getTime()) / 1000; // in seconds
       summary.durationSec += timeDiff;
       summary.distanceKm += (sample.obd.vehicleSpeed / 3600) * timeDiff;
-      summary.fuelUsedL += (sample.obd.fuelConsumptionRate / 3600) * timeDiff;
+      summary.fuelUsedL += (sample.obd.fuelConsumptionRate / 1000) * timeDiff;
 
       if (sample.gps.latitude !== prevSample.gps.latitude || sample.gps.longitude !== prevSample.gps.longitude) {
         summary.route.push({
@@ -105,7 +105,8 @@ const calculateSummary = (samples: ISample[]) => {
 
   summary.avgSpeedKph = parseFloat((totalSpeed / samples.length).toFixed(1));
   summary.avgRpm = Math.round(totalRpm / samples.length);
-  summary.avgFuelRateLph = parseFloat((totalFuelRate / samples.length).toFixed(2));
+  const avgFuelRateMls = totalFuelRate / samples.length;
+  summary.avgFuelRateLph = parseFloat((avgFuelRateMls * 3.6).toFixed(2));
   summary.distanceKm = parseFloat(summary.distanceKm.toFixed(2));
   summary.fuelUsedL = parseFloat(summary.fuelUsedL.toFixed(2));
   summary.maxSpeedKph = Math.round(summary.maxSpeedKph);

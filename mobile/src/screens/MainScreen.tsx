@@ -55,9 +55,14 @@ const MainScreen = () => {
   const [isStartingTrip, setIsStartingTrip] = useState(false);
 
   const { obdData } = useOBD();
+  const [location, setLocation] = useState<{ latitude: number; longitude: number } | null>(null);
 
   useEffect(() => {
     locationService.requestLocationPermission();
+
+    const locationSubscription = locationService.subscribe((position) => {
+      setLocation(position.coords);
+    });
 
     const fetchVehicle = async () => {
       const assignedVehicle = await getAssignedVehicle();
@@ -73,6 +78,10 @@ const MainScreen = () => {
 
     fetchVehicle();
     checkActiveTrip();
+
+    return () => {
+      locationSubscription.remove();
+    };
   }, []);
 
   const handleStartTrip = async () => {
@@ -135,7 +144,7 @@ const MainScreen = () => {
   const isConnected = bluetoothStatus === 'connected' && socketStatus === 'connected';
 
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container}>
       <ConnectionStatus />
       <Card style={styles.welcomeCard}>
         <Card.Content>
@@ -173,32 +182,32 @@ const MainScreen = () => {
         <Card style={styles.obdCard}>
           <Card.Content>
             <Title>OBD Data</Title>
-            <Paragraph>Vehicle Speed: {obdData.vehicle_speed}</Paragraph>
+            <Paragraph>Vehicle Speed: {obdData.vehicle_speed} km/h</Paragraph>
             <Paragraph>Engine RPM: {obdData.engine_speed}</Paragraph>
-            <Paragraph>Fuel Consumption Rate: {obdData.fuel_consumption_rate}</Paragraph>
+            <Paragraph>Accelerator Position: {obdData.accelerator_position?.toFixed(0)}%</Paragraph>
+            <Paragraph>Engine Coolant Temp: {obdData.engine_coolant_temp?.toFixed(0)}°C</Paragraph>
+            <Paragraph>Intake Air Temp: {obdData.intake_air_temp?.toFixed(0)}°C</Paragraph>
+            <Paragraph>Fuel Per Stroke: {obdData.fuel_per_stroke?.toFixed(2)} mg/stroke</Paragraph>
+            <Paragraph>Fuel Consumption Rate: {(obdData.fuel_consumption_rate * (1000 / 3600))?.toFixed(2)} ml/s</Paragraph>
+            {location && (
+              <Paragraph>
+                GPS: {location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}
+              </Paragraph>
+            )}
           </Card.Content>
         </Card>
-      )}
-
-      {socketStatus !== 'connected' && (
-        <ScrollView style={styles.errorContainer}>
-          <Text style={styles.errorText}>
-            Could not connect to server: {appConfig.WEBSOCKET_URL}
-          </Text>
-        </ScrollView>
       )}
 
       <Button mode="contained" onPress={logout} style={styles.button}>
         Logout
       </Button>
-    </View>
+    </ScrollView>
   );
 };
 
 const createStyles = (theme: MD3Theme) => StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
     padding: 16,
     backgroundColor: theme.colors.background,
   },

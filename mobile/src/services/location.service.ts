@@ -5,8 +5,11 @@ class LocationService {
     private static instance: LocationService;
     private watchId: number | null = null;
     private latestLocation: GeoPosition | null = null;
+    private listeners: Set<(position: GeoPosition) => void> = new Set();
 
-    private constructor() {}
+    private constructor() {
+        this.startLocationTracking();
+    }
 
     public static getInstance(): LocationService {
         if (!LocationService.instance) {
@@ -47,7 +50,7 @@ class LocationService {
         this.watchId = Geolocation.watchPosition(
             (position) => {
                 this.latestLocation = position;
-                console.log('New location:', position);
+                this.notifyListeners(position);
             },
             (error) => {
                 console.log(error.code, error.message);
@@ -71,6 +74,19 @@ class LocationService {
 
     public getCurrentLocation(): GeoPosition | null {
         return this.latestLocation;
+    }
+
+    public subscribe(listener: (position: GeoPosition) => void): { remove: () => void } {
+        this.listeners.add(listener);
+        return {
+            remove: () => {
+                this.listeners.delete(listener);
+            },
+        };
+    }
+
+    private notifyListeners(position: GeoPosition): void {
+        this.listeners.forEach(listener => listener(position));
     }
 }
 
