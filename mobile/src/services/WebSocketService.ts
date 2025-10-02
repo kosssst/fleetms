@@ -74,6 +74,10 @@ class WebSocketService {
     if (this.socket && (this.status === 'connecting' || this.status === 'connected')) {
       return;
     }
+    if (!appConfig.WEBSOCKET_URL) {
+      this.log('Socket: WebSocket URL is not configured.');
+      return;
+    }
     this.isIntentionalDisconnect = false;
     this.status = 'connecting';
     this.log('Socket: Connecting...');

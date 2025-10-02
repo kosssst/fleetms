@@ -40,7 +40,7 @@ export const obdTask = async (taskParameters?: { numberOfCylinders: number }) =>
                 return {
                     latitude: location?.coords.latitude,
                     longitude: location?.coords.longitude,
-                    altitude: location?.coords.altitude,
+                    altitude: location?.coords.altitude === null ? undefined : location?.coords.altitude,
                 };
             },
         );
@@ -50,7 +50,7 @@ export const obdTask = async (taskParameters?: { numberOfCylinders: number }) =>
         }
 
         obdService.stopTrip();
-        obdService.stopPolling();
+        await obdService.stopPolling();
         locationService.stopLocationTracking();
         resolve(null);
     });

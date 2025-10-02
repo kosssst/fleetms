@@ -90,6 +90,7 @@ const MainScreen = () => {
 
   const handleEndTrip = async () => {
     obdService.stopTrip();
+    await obdService.stopPolling();
     if (BackgroundService.isRunning()) {
       await BackgroundService.stop();
     }

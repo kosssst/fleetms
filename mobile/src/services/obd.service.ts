@@ -361,6 +361,7 @@ class OBDService {
   }
 
   private isPolling: boolean = false;
+  private pollingPromise: Promise<void> | null = null;
 
   startPolling(
     sendDataCallback: (data: Buffer) => void,
@@ -371,7 +372,7 @@ class OBDService {
       return;
     }
     this.isPolling = true;
-    this.poll(sendDataCallback, numberOfCylinders, getLocation);
+    this.pollingPromise = this.poll(sendDataCallback, numberOfCylinders, getLocation);
   }
 
   private async poll(
@@ -385,7 +386,7 @@ class OBDService {
       if (this.device && this.isTripActive) {
         const allData: any = {};
         for (const cmd of Object.keys(this.commandsMap)) {
-          if (!this.isPolling) break; // Exit early if polling was stopped
+          if (!this.isPolling || !this.isTripActive) break;
 
           const minLen = this.minLenNeeded[cmd] || 0;
           const payload = await this.pollCommand(cmd, minLen);
@@ -402,7 +403,7 @@ class OBDService {
           }
         }
 
-        if (this.isPolling) {
+        if (this.isPolling && this.isTripActive) {
             allData.fuel_consumption_rate = (allData.fuel_per_stroke || 0) * numberOfCylinders;
             delete allData.fuel_per_stroke;
 
@@ -450,8 +451,12 @@ class OBDService {
     return frame;
   }
 
-  stopPolling() {
+  async stopPolling() {
     this.isPolling = false;
+    if (this.pollingPromise) {
+      await this.pollingPromise;
+      this.pollingPromise = null;
+    }
   }
 
   startTrip() {
