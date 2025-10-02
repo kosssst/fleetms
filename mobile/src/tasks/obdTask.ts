@@ -1,8 +1,7 @@
 import BackgroundService from 'react-native-background-actions';
 import { obdService } from '../services/obd.service';
 import { locationService } from '../services/location.service';
-import { webSocketService } from '../services/WebSocketService';
-import { Buffer } from 'buffer';
+import { dataQueue } from '../services/dataQueue.service';
 
 const sleep = (time: number) => new Promise((resolve) => setTimeout(() => resolve(null), time));
 
@@ -27,9 +26,7 @@ export const obdTask = async (taskParameters?: { numberOfCylinders: number }) =>
         obdService.startTrip();
 
         const sendDataCallback = (dataFrame: Buffer) => {
-            if (webSocketService.isConnected()) {
-                webSocketService.sendDataFrames([dataFrame]);
-            }
+            dataQueue.enqueue(dataFrame);
         };
 
         obdService.startPolling(

@@ -1,3 +1,5 @@
+import { SampleModel } from '../models/sample.model';
+
 import { Server } from 'http';
 import WebSocket from 'ws';
 import { Buffer } from 'buffer';
@@ -7,9 +9,11 @@ import { VehicleModel } from '../models/vehicle.model';
 import { TripModel } from '../models/trip.model';
 import { Types } from 'mongoose';
 
+import { sendToQueue } from '../services/rabbitmq.service';
+
 // --- Protocol Constants ---
 const FrameType = { CONTROL: 0, DATA: 1 };
-const CommandType = {
+const CommandType = { 
   AUTH_REQ: 0x00, AUTH_OK: 0x01,
   START_TRIP_REQ: 0x02, START_TRIP_OK: 0x03,
   RESUME_TRIP_REQ: 0x04, RESUME_TRIP_OK: 0x05,
@@ -182,7 +186,10 @@ class ClientConnection {
         break;
 
       case CommandType.END_TRIP_REQ:
-        if (this.tripId) await TripModel.findByIdAndUpdate(this.tripId, { $set: { status: 'completed', endTime: new Date() } });
+        if (this.tripId) {
+          await TripModel.findByIdAndUpdate(this.tripId, { $set: { status: 'completed', endTime: new Date() } });
+          sendToQueue(JSON.stringify({ tripId: this.tripId }));
+        }
         this.tripId = null;
         this.send(Buffer.from([CommandType.END_TRIP_OK]));
         break;
@@ -195,7 +202,7 @@ class ClientConnection {
 
   private async handleDataMessage(recordCount: number, data: Buffer) {
     if (!this.tripId) return;
-    const dataPoints = [];
+    const samples = [];
     for (let i = 0; i < recordCount; i++) {
       const offset = i * 32;
       if (offset + 32 > data.length) {
@@ -203,22 +210,28 @@ class ClientConnection {
         break;
       }
       const record = data.slice(offset, offset + 32);
-      dataPoints.push({
+      samples.push({
+        tripId: this.tripId,
         timestamp: new Date(Number(record.readBigUInt64BE(0))),
-        gps_longitude: record.readInt32BE(8),
-        gps_latitude: record.readInt32BE(12),
-        gps_altitude: record.readInt32BE(16),
-        vehicle_speed: record.readUInt16BE(20),
-        engine_speed: record.readUInt16BE(22),
-        accelerator_position: record.readUInt16BE(24),
-        engine_coolant_temp: record.readUInt16BE(26),
-        intake_air_temp: record.readUInt16BE(28),
-        fuel_consumption_rate: record.readUInt16BE(30),
+        gps: {
+          longitude: record.readInt32BE(8) / 10000000,
+          latitude: record.readInt32BE(12) / 10000000,
+          altitude: record.readInt32BE(16),
+        },
+        obd: {
+          vehicleSpeed: record.readUInt16BE(20),
+          engineRpm: record.readUInt16BE(22),
+          acceleratorPosition: record.readUInt16BE(24),
+          engineCoolantTemp: record.readUInt16BE(26),
+          intakeAirTemp: record.readUInt16BE(28),
+          fuelConsumptionRate: record.readUInt16BE(30),
+        },
       });
     }
 
-    if (dataPoints.length > 0) {
-      await TripModel.findByIdAndUpdate(this.tripId, { $push: { dataPoints: { $each: dataPoints } } });
+    if (samples.length > 0) {
+      await SampleModel.insertMany(samples);
+      await TripModel.findByIdAndUpdate(this.tripId, { $inc: { samplesReceived: samples.length } });
     }
 
     this.receivedFramesSinceAck += recordCount;

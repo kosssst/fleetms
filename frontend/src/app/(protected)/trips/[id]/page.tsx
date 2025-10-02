@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { getTripById } from '@/services/trip.service';
 import { Trip } from '@/types/trip.types';
-import { Paper, Title, Text, Grid } from '@mantine/core';
+import { Paper, Title, Text, Grid, Button } from '@mantine/core';
 import { MapContainer, TileLayer, Polyline } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Sample } from '@/types/sample.types';
@@ -12,6 +12,7 @@ import { getSamplesForTrip } from '@/services/sample.service';
 
 const TripDetailsPage = () => {
   const { id } = useParams();
+  const router = useRouter();
   const [trip, setTrip] = useState<Trip | null>(null);
   const [samples, setSamples] = useState<Sample[]>([]);
 
@@ -31,10 +32,13 @@ const TripDetailsPage = () => {
     return <div>Loading...</div>;
   }
 
-  const route = samples.map(sample => [sample.gps.latitude, sample.gps.longitude]);
+  const route = samples.map(sample => [sample.gps.longitude, sample.gps.latitude]);
 
   return (
     <div className="main-context">
+      <Button onClick={() => router.back()} mb="md">
+        Return
+      </Button>
       <Title order={2}>Trip Details</Title>
       <Grid>
         <Grid.Col span={8}>

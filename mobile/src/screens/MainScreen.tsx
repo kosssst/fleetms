@@ -18,6 +18,8 @@ import { obdService } from '../services/obd.service';
 import { locationService } from '../services/location.service';
 import appConfig from '../config/config';
 
+import { senderTask } from '../tasks/senderTask';
+
 const obdBackgroundOptions = {
   taskName: 'FleetMS OBD',
   taskTitle: 'OBD Connection Active',
@@ -30,6 +32,18 @@ const obdBackgroundOptions = {
   linkingURI: 'fleetms://',
 };
 
+const senderBackgroundOptions = {
+    taskName: 'FleetMS Sender',
+    taskTitle: 'Sender Active',
+    taskDesc: 'Sending trip data.',
+    taskIcon: {
+        name: 'ic_launcher',
+        type: 'mipmap',
+    },
+    color: '#009688',
+    linkingURI: 'fleetms://',
+};
+
 const MainScreen = () => {
   const { user, logout } = useAuth();
   const theme = useTheme();
@@ -38,7 +52,6 @@ const MainScreen = () => {
   const { connectionStatus: bluetoothStatus } = useBluetooth();
   const { socketStatus, startTrip, pauseTrip, resumeTrip, endTrip } = useSocket();
   const [tripStatus, setTripStatus] = useState<'stopped' | 'ongoing' | 'paused'>('stopped');
-  const [hasActiveTrip, setHasActiveTrip] = useState(false);
   const [isStartingTrip, setIsStartingTrip] = useState(false);
 
   const { obdData } = useOBD();
@@ -54,7 +67,7 @@ const MainScreen = () => {
     const checkActiveTrip = async () => {
       const activeTripId = await AsyncStorage.getItem('activeTripId');
       if (activeTripId) {
-        setHasActiveTrip(true);
+        setTripStatus('ongoing');
       }
     };
 
@@ -75,8 +88,8 @@ const MainScreen = () => {
           },
         };
         await BackgroundService.start(obdTask, options);
+        await BackgroundService.start(senderTask, senderBackgroundOptions);
         setTripStatus('ongoing');
-        setHasActiveTrip(false);
       } catch (e) {
         console.error('Failed to start background service', e);
       }
@@ -102,8 +115,8 @@ const MainScreen = () => {
         },
       };
       await BackgroundService.start(obdTask, options);
+      await BackgroundService.start(senderTask, senderBackgroundOptions);
       setTripStatus('ongoing');
-      setHasActiveTrip(false);
     } catch (e) {
       console.error('Failed to start background service', e);
     }
@@ -134,15 +147,10 @@ const MainScreen = () => {
       {vehicle && <VehicleInfo vehicle={vehicle} />}
 
       <View style={styles.tripControls}>
-        {tripStatus === 'stopped' && !hasActiveTrip && (
+        {tripStatus === 'stopped' && (
           <Button mode="contained" onPress={handleStartTrip} style={styles.button} disabled={!isConnected || isStartingTrip}>
             Start Trip
           </Button>
-        )}
-        {hasActiveTrip && (
-            <Button mode="contained" onPress={handleResumeTrip} style={styles.button} disabled={!isConnected}>
-                Resume Trip
-            </Button>
         )}
         {tripStatus === 'ongoing' && (
           <Button mode="contained" onPress={handlePauseTrip} style={styles.button}>

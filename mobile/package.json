@@ -6,6 +6,8 @@
     "android": "cd android && gradlew.bat installProdDebug && cd ..",
     "android:dev": "cd android && gradlew.bat assembleDevDebug && gradlew.bat installDevDebug && cd ..",
     "android:stage": "cd android && gradlew.bat assembleStageRelease && cd ..",
+    "android:stage_debug": "cd android && gradlew.bat installStageDebug && cd ..",
+    "android:stage_install": "cd android && gradlew.bat installStageRelease && cd ..",
     "android:prod": "cd android && gradlew.bat installProdDebug && cd ..",
     "ios": "react-native run-ios",
     "lint": "eslint .",

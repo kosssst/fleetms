@@ -194,6 +194,9 @@ class WebSocketService {
     const sessionIdLength = data.readUInt16BE(1);
     this.sessionId = data.slice(3, 3 + sessionIdLength).toString();
     this.sendConfigRequest();
+    if (this.tripId) {
+      this.resumeTrip();
+    }
     this.sendOfflineData();
   }
 
@@ -246,23 +249,35 @@ class WebSocketService {
   }
 
   sendDataFrames(frames: Buffer[]) {
+    if (!this.isConnected()) {
+      this.log(`Socket: not connected. Queuing ${frames.length} frames.`);
+      this.offlineQueue.push(...frames);
+      return;
+    }
+
     const numFrames = frames.length;
     if (numFrames === 0 || numFrames > 63) {
       this.log('Socket: Invalid number of data frames to send.');
       return;
     }
     const header = Buffer.alloc(1);
-    // Set Frame Type to 1 (DATA) and add the number of frames
     header.writeUInt8((1 << 7) | (numFrames & 0x3F), 0);
     const message = Buffer.concat([header, ...frames]);
     this.sendMessage(message);
   }
 
   private sendOfflineData() {
-    const queue = [...this.offlineQueue];
+    if (this.offlineQueue.length === 0) {
+      return;
+    }
+
+    this.log(`Socket: Sending ${this.offlineQueue.length} offline frames.`);
+    const framesToSend = [...this.offlineQueue];
     this.offlineQueue = [];
-    for (const message of queue) {
-      this.sendMessage(message);
+
+    while (framesToSend.length > 0) {
+      const chunk = framesToSend.splice(0, 63);
+      this.sendDataFrames(chunk);
     }
   }
 

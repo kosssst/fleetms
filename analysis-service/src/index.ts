@@ -39,7 +39,7 @@ const connectRabbitMQ = async () => {
 const analyzeTrip = async (tripId: string) => {
   console.log(`Analyzing trip ${tripId}`);
   const samples = await SampleModel.find({ tripId: new mongoose.Types.ObjectId(tripId) }).sort({ timestamp: 1 });
-  const trip = await TripModel.findById(tripId);
+  const trip = await TripModel.findById(new mongoose.Types.ObjectId(tripId));
 
   if (!trip || samples.length === 0) {
     console.log(`Trip ${tripId} not found or has no samples`);
@@ -85,14 +85,18 @@ const calculateSummary = (samples: ISample[]) => {
       const prevSample = samples[i - 1];
       const timeDiff = (sample.timestamp.getTime() - prevSample.timestamp.getTime()) / 1000; // in seconds
       summary.durationSec += timeDiff;
-      summary.distanceKm += (prevSample.obd.vehicleSpeed / 3600) * timeDiff;
-      summary.fuelUsedL += (prevSample.obd.fuelConsumptionRate / 3600) * timeDiff;
+      summary.distanceKm += (sample.obd.vehicleSpeed / 3600) * timeDiff;
+      summary.fuelUsedL += (sample.obd.fuelConsumptionRate / 3600) * timeDiff;
     }
   }
 
-  summary.avgSpeedKph = totalSpeed / samples.length;
-  summary.avgRpm = totalRpm / samples.length;
-  summary.avgFuelRateLph = totalFuelRate / samples.length;
+  summary.avgSpeedKph = parseFloat((totalSpeed / samples.length).toFixed(1));
+  summary.avgRpm = Math.round(totalRpm / samples.length);
+  summary.avgFuelRateLph = parseFloat((totalFuelRate / samples.length).toFixed(2));
+  summary.distanceKm = parseFloat(summary.distanceKm.toFixed(2));
+  summary.fuelUsedL = parseFloat(summary.fuelUsedL.toFixed(2));
+  summary.maxSpeedKph = Math.round(summary.maxSpeedKph);
+  summary.maxRpm = Math.round(summary.maxRpm);
 
   return summary;
 };

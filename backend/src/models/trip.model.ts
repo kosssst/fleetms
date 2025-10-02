@@ -4,7 +4,7 @@ export interface ITrip extends Document {
   driverId: Types.ObjectId;
   vehicleId: Types.ObjectId;
   companyId: Types.ObjectId;
-  status: 'ongoing' | 'paused' | 'ended';
+  status: 'ongoing' | 'paused' | 'completed';
   startTime: Date;
   endTime?: Date;
   ingestCounters?: {
@@ -34,7 +34,7 @@ const TripSchema = new Schema<ITrip>({
   driverId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
   vehicleId: { type: Schema.Types.ObjectId, ref: 'Vehicle', required: true },
   companyId: { type: Schema.Types.ObjectId, ref: 'Company', required: true },
-  status: { type: String, enum: ['ongoing', 'paused', 'ended'], required: true },
+  status: { type: String, enum: ['ongoing', 'paused', 'completed'], required: true },
   startTime: { type: Date, required: true },
   endTime: { type: Date },
   ingestCounters: {
@@ -62,9 +62,8 @@ const TripSchema = new Schema<ITrip>({
   timestamps: true,
   toJSON: {
     transform(doc, ret) {
-      const { _id, __v, ...obj } = ret;
-      obj.id = _id;
-      return obj;
+      const { _id, __v, ...rest } = ret;
+      return { id: _id, ...rest };
     }
   }
 });

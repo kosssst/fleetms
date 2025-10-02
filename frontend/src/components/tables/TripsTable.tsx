@@ -27,7 +27,7 @@ export const TripsTable = () => {
       <Table.Td>{`${trip.driverId.firstName} ${trip.driverId.lastName}`}</Table.Td>
       <Table.Td>{trip.vehicleId.number}</Table.Td>
       <Table.Td>
-        {trip.status === 'ended' && (
+        {trip.status === 'completed' && (
           <HoverCard width={280} shadow="md">
             <HoverCard.Target>
               <Button onClick={() => router.push(`/trips/${trip.id}`)}>

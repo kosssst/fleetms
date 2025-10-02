@@ -38,7 +38,7 @@ export const getTripById = asyncHandler(async (req: RequestWithUser, res: Respon
     throw new Error('Trip not found');
   }
 
-  if (trip.status !== 'ended') {
+  if (trip.status !== 'completed') {
     res.status(403);
     throw new Error('Trip not ended');
   }

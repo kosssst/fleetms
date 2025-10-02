@@ -6,7 +6,7 @@ export interface Trip {
   driverId: User;
   vehicleId: Vehicle;
   companyId: string;
-  status: 'ongoing' | 'paused' | 'ended';
+  status: 'ongoing' | 'paused' | 'completed';
   startTime: string;
   endTime?: string;
   summary?: {
