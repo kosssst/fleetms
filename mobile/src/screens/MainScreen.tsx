@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, ScrollView, Text } from 'react-native';
 import { Button, Card, Title, Paragraph, useTheme, MD3Theme } from 'react-native-paper';
 import { useAuth } from '../contexts/AuthContext';
 import { useBluetooth } from '../contexts/BluetoothContext';
@@ -16,6 +16,7 @@ import { obdTask } from '../tasks/obdTask';
 import { obdService } from '../services/obd.service';
 
 import { locationService } from '../services/location.service';
+import appConfig from '../config/config';
 
 const obdBackgroundOptions = {
   taskName: 'FleetMS OBD',
@@ -171,6 +172,14 @@ const MainScreen = () => {
         </Card>
       )}
 
+      {socketStatus !== 'connected' && (
+        <ScrollView style={styles.errorContainer}>
+          <Text style={styles.errorText}>
+            Could not connect to server: {appConfig.WEBSOCKET_URL}
+          </Text>
+        </ScrollView>
+      )}
+
       <Button mode="contained" onPress={logout} style={styles.button}>
         Logout
       </Button>
@@ -207,7 +216,15 @@ const createStyles = (theme: MD3Theme) => StyleSheet.create({
   debugButton: {
     flex: 1,
     marginHorizontal: 4,
-  }
+  },
+  errorContainer: {
+    marginTop: 16,
+    padding: 16,
+    backgroundColor: theme.colors.errorContainer,
+  },
+  errorText: {
+    color: theme.colors.onError,
+  },
 });
 
 export default MainScreen;
