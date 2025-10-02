@@ -53,6 +53,7 @@ class OBDService {
   private isSearching: boolean = false;
   private keepAliveTimer: any = null;
   private dataListeners: Set<DataCallback> = new Set();
+  private connectionStatus: 'disconnected' | 'searching' | 'connected' | 'error' = 'disconnected';
 
   private commandsMap: CommandMap = {};
   private headersOrder: string[] = [];
@@ -60,6 +61,14 @@ class OBDService {
 
   constructor() {
     this.loadCommandTable();
+  }
+
+  public getDevice(): BluetoothDevice | null {
+    return this.device;
+  }
+
+  public getConnectionStatus(): 'disconnected' | 'searching' | 'connected' | 'error' {
+    return this.connectionStatus;
   }
 
   public registerListener(listener: DataCallback) {
@@ -122,12 +131,14 @@ class OBDService {
     onLog: LogCallback,
   ) {
     this.isSearching = true;
+    this.connectionStatus = 'searching';
     onStatusChange('searching');
     onLog('Starting search for paired ELM327 devices...');
     try {
       const pairedDevices = await RNBluetoothClassic.getBondedDevices();
       if (pairedDevices.length === 0) {
         onLog('No paired devices found.');
+        this.connectionStatus = 'error';
         onStatusChange('error');
         this.isSearching = false;
         return;
@@ -146,6 +157,7 @@ class OBDService {
             this.device = connectedDevice;
             await this.initializeELM327(onLog);
             onDeviceFound(this.device);
+            this.connectionStatus = 'connected';
             onStatusChange('connected');
             this.isSearching = false;
             return;
@@ -166,10 +178,12 @@ class OBDService {
       }
       if (this.isSearching) {
         onLog('No ELM327 device found.');
+        this.connectionStatus = 'disconnected';
         onStatusChange('disconnected');
       }
     } catch (error: any) {
       onLog(`Error getting paired devices: ${error.message}`);
+      this.connectionStatus = 'error';
       onStatusChange('error');
     } finally {
       this.isSearching = false;
@@ -466,6 +480,10 @@ class OBDService {
     this.isTripActive = false;
   }
 
+  pauseTrip() {
+    this.isTripActive = false;
+  }
+
   async stopSearch(onStatusChange: StatusCallback, onLog: LogCallback) {
     this.isSearching = false;
     onLog('Search stopped by user.');
@@ -483,6 +501,7 @@ class OBDService {
         onLog(`Failed to disconnect: ${error.message}`);
       } finally {
         this.device = null;
+        this.connectionStatus = 'disconnected';
         onStatusChange('disconnected');
       }
     }

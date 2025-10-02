@@ -53,23 +53,28 @@ class ClientConnection {
   }
 
   private async handleMessage(message: Buffer) {
-    const header = message.readUInt8(0);
-    const frameType = getFrameType(header);
+    try {
+      const header = message.readUInt8(0);
+      const frameType = getFrameType(header);
 
-    if (frameType === FrameType.CONTROL) {
-      const commandType = header;
-      console.log(`Received CONTROL: ${getCommandName(commandType)}`);
-      await this.handleControlMessage(commandType, message);
-    } else {
-      if (!this.isAuthenticated || !this.tripId) {
-        console.error('Received DATA frame from unauthenticated or trip-less client.');
-        this.ws.close(1008, 'Not ready for data');
-        return;
+      if (frameType === FrameType.CONTROL) {
+        const commandType = header;
+        console.log(`Received CONTROL: ${getCommandName(commandType)}`);
+        await this.handleControlMessage(commandType, message);
+      } else {
+        if (!this.isAuthenticated || !this.tripId) {
+          console.error('Received DATA frame from unauthenticated or trip-less client.');
+          this.ws.close(1008, 'Not ready for data');
+          return;
+        }
+        // eslint-disable-next-line no-bitwise
+        const recordCount = header & 0x3F;
+        console.log(`Received DATA with ${recordCount} records.`);
+        await this.handleDataMessage(recordCount, message.slice(1));
       }
-      // eslint-disable-next-line no-bitwise
-      const recordCount = header & 0x3F;
-      console.log(`Received DATA with ${recordCount} records.`);
-      await this.handleDataMessage(recordCount, message.slice(1));
+    } catch (error) {
+      console.error('Error handling message:', error);
+      this.ws.close(1011, 'Internal server error');
     }
   }
 

@@ -88,10 +88,6 @@ class WebSocketService {
       this.status = 'connected';
       this.log('Socket: Connection established.');
       this.resetInactivityTimer();
-      if (this.lastToken) {
-        this.log('Socket: Re-authenticating on connect...');
-        this.authenticate(this.lastToken);
-      }
     };
 
     this.socket.onclose = () => {
@@ -138,6 +134,10 @@ class WebSocketService {
 
   getTripId(): string | null {
     return this.tripId;
+  }
+
+  setTripId(tripId: string) {
+    this.tripId = tripId;
   }
 
   authenticate(token: string) {
@@ -190,7 +190,7 @@ class WebSocketService {
 
   private handleStartTripOk(data: Buffer) {
     const tripIdLength = data.readUInt16BE(1);
-    this.tripId = data.slice(3, 3 + tripIdLength).toString();
+    this.tripId = data.slice(3, 3 + tripIdLength).toString('hex');
   }
 
   private handleConfigAck(data: Buffer) {
@@ -199,11 +199,6 @@ class WebSocketService {
     this.t2 = data.readUInt16BE(5);
     this.log(`Socket: Configured with t1=${this.t1}s, t2=${this.t2}s`);
     this.resetInactivityTimer(); // Re-start timer with new values
-
-    if (this.tripId) {
-      this.log('Socket: Attempting to resume active trip...');
-      this.resumeTrip();
-    }
   }
 
   private sendConfigRequest() {
@@ -226,7 +221,7 @@ class WebSocketService {
 
   resumeTrip() {
     if (this.tripId) {
-      const tripIdBuffer = Buffer.from(this.tripId);
+      const tripIdBuffer = Buffer.from(this.tripId, 'hex');
       const header = Buffer.alloc(3);
       header.writeUInt8(0x04, 0);
       header.writeUInt16BE(tripIdBuffer.length, 1);

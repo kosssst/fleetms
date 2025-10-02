@@ -37,6 +37,8 @@ const MainScreen = () => {
   const { connectionStatus: bluetoothStatus } = useBluetooth();
   const { socketStatus, startTrip, pauseTrip, resumeTrip, endTrip } = useSocket();
   const [tripStatus, setTripStatus] = useState<'stopped' | 'ongoing' | 'paused'>('stopped');
+  const [hasActiveTrip, setHasActiveTrip] = useState(false);
+  const [isStartingTrip, setIsStartingTrip] = useState(false);
 
   const { obdData } = useOBD();
 
@@ -51,7 +53,7 @@ const MainScreen = () => {
     const checkActiveTrip = async () => {
       const activeTripId = await AsyncStorage.getItem('activeTripId');
       if (activeTripId) {
-        setTripStatus('ongoing'); // Or 'paused' if you store that state as well
+        setHasActiveTrip(true);
       }
     };
 
@@ -60,6 +62,7 @@ const MainScreen = () => {
   }, []);
 
   const handleStartTrip = async () => {
+    setIsStartingTrip(true);
     const tripId = await startTrip();
     if (tripId) {
       try {
@@ -72,20 +75,37 @@ const MainScreen = () => {
         };
         await BackgroundService.start(obdTask, options);
         setTripStatus('ongoing');
+        setHasActiveTrip(false);
       } catch (e) {
         console.error('Failed to start background service', e);
       }
     }
+    setIsStartingTrip(false);
   };
 
   const handlePauseTrip = () => {
+    obdService.pauseTrip();
     pauseTrip();
     setTripStatus('paused');
   };
 
   const handleResumeTrip = async () => {
     await resumeTrip();
-    setTripStatus('ongoing');
+    try {
+      obdService.startTrip();
+      const options = {
+        ...obdBackgroundOptions,
+        parameters: {
+          tripId: await AsyncStorage.getItem('activeTripId'),
+          numberOfCylinders: vehicle?.numberOfCylinders || 0,
+        },
+      };
+      await BackgroundService.start(obdTask, options);
+      setTripStatus('ongoing');
+      setHasActiveTrip(false);
+    } catch (e) {
+      console.error('Failed to start background service', e);
+    }
   };
 
   const handleEndTrip = async () => {
@@ -113,10 +133,15 @@ const MainScreen = () => {
       {vehicle && <VehicleInfo vehicle={vehicle} />}
 
       <View style={styles.tripControls}>
-        {tripStatus === 'stopped' && (
-          <Button mode="contained" onPress={handleStartTrip} style={styles.button} disabled={!isConnected}>
+        {tripStatus === 'stopped' && !hasActiveTrip && (
+          <Button mode="contained" onPress={handleStartTrip} style={styles.button} disabled={!isConnected || isStartingTrip}>
             Start Trip
           </Button>
+        )}
+        {hasActiveTrip && (
+            <Button mode="contained" onPress={handleResumeTrip} style={styles.button} disabled={!isConnected}>
+                Resume Trip
+            </Button>
         )}
         {tripStatus === 'ongoing' && (
           <Button mode="contained" onPress={handlePauseTrip} style={styles.button}>

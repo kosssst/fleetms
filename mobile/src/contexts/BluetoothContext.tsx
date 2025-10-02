@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, ReactNode, useCallback } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useCallback, useEffect } from 'react';
 import { obdService } from '../services/obd.service';
 import { BluetoothDevice } from 'react-native-bluetooth-classic';
 
@@ -24,6 +24,14 @@ export const BluetoothProvider: React.FC<{ children: ReactNode }> = ({ children 
     const logMessage = `[${timestamp}] ${message}`;
     console.log(logMessage);
     setLogs(prevLogs => [logMessage, ...prevLogs.slice(0, 100)]);
+  }, []);
+
+  useEffect(() => {
+    const status = obdService.getConnectionStatus();
+    const currentDevice = obdService.getDevice();
+    setConnectionStatus(status);
+    setDevice(currentDevice);
+    obdService.stopTrip();
   }, []);
 
   const startSearch = async () => {

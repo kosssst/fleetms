@@ -40,7 +40,16 @@ export const SocketProvider: React.FC<{ children: ReactNode }> = ({
   }, []);
 
   useEffect(() => {
-    webSocketService.connect(addLog);
+    const initialize = async () => {
+      const activeTripId = await AsyncStorage.getItem('activeTripId');
+      if (activeTripId) {
+        addLog(`Found active tripId: ${activeTripId}`);
+        webSocketService.setTripId(activeTripId);
+      }
+      webSocketService.connect(addLog);
+    };
+
+    initialize();
 
     const statusInterval = setInterval(() => {
       const status = webSocketService.getStatus();

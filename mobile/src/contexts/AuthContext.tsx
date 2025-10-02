@@ -4,6 +4,8 @@ import * as Keychain from 'react-native-keychain';
 import api from '../config/api';
 import { User } from '../types/user.types';
 
+import { useSocket } from './SocketContext';
+
 interface AuthContextType {
   user: User | null;
   token: string | null;
@@ -18,6 +20,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const { authenticate, socketStatus } = useSocket();
 
   const logout = useCallback(async () => {
     setUser(null);
@@ -46,6 +49,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
     loadToken();
   }, [fetchUser]);
+
+  useEffect(() => {
+    if (token && socketStatus === 'connected') {
+      authenticate(token);
+    }
+  }, [token, socketStatus, authenticate]);
 
   const login = async (newToken: string) => {
     setToken(newToken);
