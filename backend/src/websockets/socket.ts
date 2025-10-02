@@ -198,6 +198,10 @@ class ClientConnection {
     const dataPoints = [];
     for (let i = 0; i < recordCount; i++) {
       const offset = i * 32;
+      if (offset + 32 > data.length) {
+        console.error('Invalid data frame length.');
+        break;
+      }
       const record = data.slice(offset, offset + 32);
       dataPoints.push({
         timestamp: new Date(Number(record.readBigUInt64BE(0))),
@@ -213,7 +217,9 @@ class ClientConnection {
       });
     }
 
-    await TripModel.findByIdAndUpdate(this.tripId, { $push: { dataPoints: { $each: dataPoints } } });
+    if (dataPoints.length > 0) {
+      await TripModel.findByIdAndUpdate(this.tripId, { $push: { dataPoints: { $each: dataPoints } } });
+    }
 
     this.receivedFramesSinceAck += recordCount;
     if (this.receivedFramesSinceAck >= this.n1) {

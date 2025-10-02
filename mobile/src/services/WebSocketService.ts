@@ -1,3 +1,5 @@
+/* eslint-disable no-bitwise */
+
 import { Buffer } from 'buffer';
 import appConfig from '../config/config';
 
@@ -11,6 +13,8 @@ const commandMap: { [key: number]: string } = {
   0x0c: 'PAUSE_TRIP_REQ', 0x0d: 'PAUSE_TRIP_OK', 0x0e: 'CONFIG_REQ', 0x0f: 'CONFIG_ACK',
 };
 
+const getFrameType = (header: number) => (header >> 7) & 0x01;
+
 const parseMessage = (data: Buffer): string => {
   const header = data.readUInt8(0);
   const commandName = commandMap[header];
@@ -18,12 +22,8 @@ const parseMessage = (data: Buffer): string => {
   if (commandName) {
     return `CONTROL: ${commandName}`;
   } else {
-    // Assuming it's a DATA frame if not a known control command
-    // eslint-disable-next-line no-bitwise
-    const frameType = header & 0x01;
-    if (frameType === 1) {
-      // eslint-disable-next-line no-bitwise
-      const numFrames = header >> 2;
+    if (getFrameType(header) === 1) {
+      const numFrames = header & 0x3F;
       return `DATA: ${numFrames} frames`;
     }
     return 'UNKNOWN';
@@ -43,6 +43,7 @@ class WebSocketService {
   private isIntentionalDisconnect: boolean = false;
   private log: LogCallback = () => {};
   private lastToken: string | null = null;
+  private offlineQueue: Buffer[] = [];
 
   private resetInactivityTimer() {
     if (this.inactivityTimer) {
@@ -88,6 +89,10 @@ class WebSocketService {
       this.status = 'connected';
       this.log('Socket: Connection established.');
       this.resetInactivityTimer();
+      if (this.lastToken) {
+        this.log('Socket: Re-authenticating on connect...');
+        this.authenticate(this.lastToken);
+      }
     };
 
     this.socket.onclose = () => {
@@ -121,6 +126,9 @@ class WebSocketService {
       this.socket?.send(data);
     } else {
       this.log(`Socket: Cannot send, not connected. Message: ${data.toString('hex')}`);
+      if (getFrameType(data.readUInt8(0)) === 1) {
+        this.offlineQueue.push(data);
+      }
     }
   }
 
@@ -186,6 +194,7 @@ class WebSocketService {
     const sessionIdLength = data.readUInt16BE(1);
     this.sessionId = data.slice(3, 3 + sessionIdLength).toString();
     this.sendConfigRequest();
+    this.sendOfflineData();
   }
 
   private handleStartTripOk(data: Buffer) {
@@ -244,10 +253,17 @@ class WebSocketService {
     }
     const header = Buffer.alloc(1);
     // Set Frame Type to 1 (DATA) and add the number of frames
-    // eslint-disable-next-line no-bitwise
     header.writeUInt8((1 << 7) | (numFrames & 0x3F), 0);
     const message = Buffer.concat([header, ...frames]);
     this.sendMessage(message);
+  }
+
+  private sendOfflineData() {
+    const queue = [...this.offlineQueue];
+    this.offlineQueue = [];
+    for (const message of queue) {
+      this.sendMessage(message);
+    }
   }
 
   private handlePong() {
