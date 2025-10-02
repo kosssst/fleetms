@@ -62,6 +62,7 @@ const calculateSummary = (samples: ISample[]) => {
     maxRpm: 0,
     fuelUsedL: 0,
     avgFuelRateLph: 0,
+    route: [] as { latitude: number, longitude: number }[],
   };
 
   let totalSpeed = 0;
@@ -87,6 +88,18 @@ const calculateSummary = (samples: ISample[]) => {
       summary.durationSec += timeDiff;
       summary.distanceKm += (sample.obd.vehicleSpeed / 3600) * timeDiff;
       summary.fuelUsedL += (sample.obd.fuelConsumptionRate / 3600) * timeDiff;
+
+      if (sample.gps.latitude !== prevSample.gps.latitude || sample.gps.longitude !== prevSample.gps.longitude) {
+        summary.route.push({
+          latitude: sample.gps.latitude,
+          longitude: sample.gps.longitude,
+        });
+      }
+    } else {
+      summary.route.push({
+        latitude: sample.gps.latitude,
+        longitude: sample.gps.longitude,
+      });
     }
   }
 

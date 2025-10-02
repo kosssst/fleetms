@@ -27,6 +27,10 @@ export interface ITrip extends Document {
     maxRpm: number;
     fuelUsedL: number;
     avgFuelRateLph: number;
+    route: {
+      latitude: number;
+      longitude: number;
+    }[];
   };
 }
 
@@ -57,6 +61,10 @@ const TripSchema = new Schema<ITrip>({
     maxRpm: { type: Number },
     fuelUsedL: { type: Number },
     avgFuelRateLph: { type: Number },
+    route: [{
+      latitude: { type: Number },
+      longitude: { type: Number },
+    }],
   },
 }, {
   timestamps: true,

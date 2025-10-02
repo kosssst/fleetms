@@ -18,5 +18,9 @@ export interface Trip {
     maxRpm: number;
     fuelUsedL: number;
     avgFuelRateLph: number;
+    route: {
+      latitude: number;
+      longitude: number;
+    }[];
   };
 }
