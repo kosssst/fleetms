@@ -12,13 +12,18 @@ import {
   vehicleSpeedDecoder,
 } from '../utils/decoders';
 import { obdParameters, ObdParameter } from '../config/obd-parameters';
+import config from '../config/config';
 
 // --- Constants from obd_csv.py ---
 const UPDATE_CODE = '3E01';
-const READ_TIMEOUT_PRIMARY = 0.65;
-const READ_TIMEOUT_RETRY = 0.9;
-const KEEPALIVE_PERIOD = 1.8;
-const SAMPLE_PERIOD_SEC = 0.6;
+const READ_TIMEOUT_PRIMARY = config.READ_TIMEOUT_PRIMARY;
+const READ_TIMEOUT_RETRY = config.READ_TIMEOUT_RETRY;
+const KEEPALIVE_PERIOD = config.KEEPALIVE_PERIOD;
+const SAMPLE_PERIOD_SEC = config.SAMPLE_PERIOD_SEC;
+const INTERROGATE_DEVICE_TIMEOUT_1 = config.INTERROGATE_DEVICE_TIMEOUT_1;
+const INTERROGATE_DEVICE_TIMEOUT_2 = config.INTERROGATE_DEVICE_TIMEOUT_2;
+const SEND_COMMAND_DEFAULT_TIMEOUT = config.SEND_COMMAND_DEFAULT_TIMEOUT;
+const READ_UNTIL_DELIMITER_DEFAULT_TIMEOUT = config.READ_UNTIL_DELIMITER_DEFAULT_TIMEOUT;
 
 // --- Type definitions ---
 type StatusCallback = (
@@ -209,7 +214,7 @@ class OBDService {
       await connectedDevice.write('ATI\r');
       let response = await this.readUntilDelimiter(
         connectedDevice,
-        3500,                               // a bit generous for the first reply
+        INTERROGATE_DEVICE_TIMEOUT_1,                               // a bit generous for the first reply
         { ignoreBarePromptOnce: true, accumulateMs: 400 }   // <— key
       );
 
@@ -222,7 +227,7 @@ class OBDService {
       await connectedDevice.write('ATI\r');
       response = await this.readUntilDelimiter(
         connectedDevice,
-        3500,
+        INTERROGATE_DEVICE_TIMEOUT_2,
         { ignoreBarePromptOnce: true, accumulateMs: 500 }
       );
 
@@ -296,7 +301,7 @@ class OBDService {
     this.clearKeepAlive();
     try {
       await this.device.clear();
-      const readP = this.readUntilDelimiter(this.device, timeout ?? 1500);
+      const readP = this.readUntilDelimiter(this.device, timeout ?? SEND_COMMAND_DEFAULT_TIMEOUT);
       await this.device.write(cmd + '\r');
       await new Promise(r => setTimeout(r, 60));
       return await readP;
@@ -307,7 +312,7 @@ class OBDService {
 
   private readUntilDelimiter(
     device: BluetoothDevice,
-    timeoutMs = 5000,
+    timeoutMs = READ_UNTIL_DELIMITER_DEFAULT_TIMEOUT,
     options?: { ignoreBarePromptOnce?: boolean; accumulateMs?: number }
   ): Promise<string> {
     const ignoreBare = options?.ignoreBarePromptOnce ?? false;

@@ -15,6 +15,9 @@ services:
       - FRONTEND_URL=${FRONTEND_URL}
       - NODE_ENV=development
       - RABBITMQ_URL=${RABBITMQ_URL}
+      - WEBSOCKET_N1=${WEBSOCKET_N1}
+      - WEBSOCKET_T1=${WEBSOCKET_T1}
+      - WEBSOCKET_T2=${WEBSOCKET_T2}
     depends_on:
       - mongo
       - rabbitmq

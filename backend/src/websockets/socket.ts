@@ -45,7 +45,7 @@ class ClientConnection {
   private userId: Types.ObjectId | null = null; // <-- Added
   private vehicleId: Types.ObjectId | null = null;
   private tripId: Types.ObjectId | null = null;
-  private n1: number = 10; // Default ACK threshold
+  private n1: number = parseInt(process.env.WEBSOCKET_N1 || '10', 10);
   private receivedFramesSinceAck: number = 0;
 
   constructor(ws: WebSocket) {
@@ -132,12 +132,14 @@ class ClientConnection {
         break;
 
       case CommandType.CONFIG_REQ:
+        const t1 = parseInt(process.env.WEBSOCKET_T1 || '30', 10);
+        const t2 = parseInt(process.env.WEBSOCKET_T2 || '10', 10);
         const response = Buffer.alloc(9);
         response.writeUInt8(CommandType.CONFIG_ACK, 0);
         response.writeUInt16BE(6, 1); // Payload length
         response.writeUInt16BE(this.n1, 3);
-        response.writeUInt16BE(30, 5);
-        response.writeUInt16BE(10, 7);
+        response.writeUInt16BE(t1, 5);
+        response.writeUInt16BE(t2, 7);
         this.send(response);
         break;
 
