@@ -609,13 +609,13 @@ class OBDService {
           try {
             const resp = await this.sendCommand('21A5', perCmdTimeoutMs);
             if (/STOPPED/i.test(resp)) this.headerPrimed = false;
-            const payload = this.extractPayload('21A5', resp, 10) || Buffer.alloc(0);
+            const payload = this.extractPayload('21A5', resp, 12) || Buffer.alloc(0);
             if (payload.length) {
               // sawA5 = true;
-              const fpsRaw = this.u16be(payload, 9);
+              const fpsRaw = this.u16be(payload, 11);
               if (fpsRaw != null) {
                 // your decoder for 21A5 is mg/stroke = raw / 10 (if different, adjust)
-                decNow.fuel_per_stroke = fuelPerStrokeDecoder(Buffer.from([payload[8], payload[9]]));
+                decNow.fuel_per_stroke = fuelPerStrokeDecoder(Buffer.from([payload[10], payload[11]]));
               }
             }
           } catch {

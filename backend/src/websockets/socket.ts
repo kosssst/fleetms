@@ -226,7 +226,7 @@ class ClientConnection {
           acceleratorPosition: record.readUInt16BE(24) / 10,
           engineCoolantTemp: record.readUInt16BE(26) / 100,
           intakeAirTemp: record.readUInt16BE(28) / 100,
-          fuelConsumptionRate: record.readUInt16BE(30) / 1000,
+          fuelConsumptionRate: record.readUInt16BE(30),
         },
       });
     }

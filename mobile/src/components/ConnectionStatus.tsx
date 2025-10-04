@@ -1,38 +1,16 @@
-import React, { useMemo, useState, useRef } from 'react';
-import { View, StyleSheet, ScrollView, NativeScrollEvent } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { useBluetooth } from '../contexts/BluetoothContext';
 import { useSocket } from '../contexts/SocketContext';
-import { useTheme, Card, Title, Button, Text, MD3Theme } from 'react-native-paper';
+import { useTheme, Card, Title, Button, MD3Theme } from 'react-native-paper';
 
 const ConnectionStatus: React.FC = () => {
-  const { connectionStatus: bluetoothStatus, logs: bluetoothLogs = [], startSearch, stopSearch } = useBluetooth();
-  const { socketStatus, logs: socketLogs = [] } = useSocket();
+  const { connectionStatus: bluetoothStatus, startSearch, stopSearch } = useBluetooth();
+  const { socketStatus } = useSocket();
   const theme = useTheme();
-  const scrollViewRef = useRef<ScrollView>(null);
-  const [userHasScrolled, setUserHasScrolled] = useState(false);
 
   const styles = createStyles(theme);
   const isSearching = bluetoothStatus === 'searching';
 
-  // Sort oldest first, so newest appears at the bottom
-  const combinedLogs = useMemo(() => [...(socketLogs || []), ...(bluetoothLogs || [])].sort((a, b) => {
-    const timeA = a.match(/\\[(.*?)\\]/)?.[1];
-    const timeB = b.match(/\\[(.*?)\\]/)?.[1];
-    if (timeA && timeB) {
-      return timeA.localeCompare(timeB);
-    }
-    return 0;
-  }), [socketLogs, bluetoothLogs]);
-
-  const handleScroll = (event: NativeScrollEvent) => {
-    setUserHasScrolled(true);
-    const { layoutMeasurement, contentOffset, contentSize } = event;
-    const paddingToBottom = 20; // A small tolerance
-    const isScrolledToBottom = layoutMeasurement.height + contentOffset.y >= contentSize.height - paddingToBottom;
-    if (isScrolledToBottom) {
-      setUserHasScrolled(false);
-    }
-  };
 
   const getStatusStyle = (status: string) => {
     switch (status) {
@@ -79,25 +57,25 @@ const ConnectionStatus: React.FC = () => {
             Stop Search
           </Button>
         </View>
-        <View style={styles.logContainer}>
-          <ScrollView
-            ref={scrollViewRef}
-            nestedScrollEnabled={true}
-            onScroll={({ nativeEvent }) => handleScroll(nativeEvent)}
-            scrollEventThrottle={400}
-            onContentSizeChange={() => {
-              if (!userHasScrolled) {
-                scrollViewRef.current?.scrollToEnd({ animated: true });
-              }
-            }}
-          >
-            {combinedLogs.map((log, index) => (
-              <Text key={`${log}-${index}`} style={styles.logText}>
-                {log}
-              </Text>
-            ))}
-          </ScrollView>
-        </View>
+        {/*<View style={styles.logContainer}>*/}
+        {/*  <ScrollView*/}
+        {/*    ref={scrollViewRef}*/}
+        {/*    nestedScrollEnabled={true}*/}
+        {/*    onScroll={({ nativeEvent }) => handleScroll(nativeEvent)}*/}
+        {/*    scrollEventThrottle={400}*/}
+        {/*    onContentSizeChange={() => {*/}
+        {/*      if (!userHasScrolled) {*/}
+        {/*        scrollViewRef.current?.scrollToEnd({ animated: true });*/}
+        {/*      }*/}
+        {/*    }}*/}
+        {/*  >*/}
+        {/*    {combinedLogs.map((log, index) => (*/}
+        {/*      <Text key={`${log}-${index}`} style={styles.logText}>*/}
+        {/*        {log}*/}
+        {/*      </Text>*/}
+        {/*    ))}*/}
+        {/*  </ScrollView>*/}
+        {/*</View>*/}
       </Card.Content>
     </Card>
   );

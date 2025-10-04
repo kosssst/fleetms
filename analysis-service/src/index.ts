@@ -67,50 +67,51 @@ const calculateSummary = (samples: ISample[]) => {
 
   let totalSpeed = 0;
   let totalRpm = 0;
-  let totalFuelRate = 0;
+  let totalFuelRateMlps = 0;      // <-- accumulate ml/s
 
   for (let i = 0; i < samples.length; i++) {
-    const sample = samples[i];
-    totalSpeed += sample.obd.vehicleSpeed;
-    totalRpm += sample.obd.engineRpm;
-    totalFuelRate += sample.obd.fuelConsumptionRate;
+    const s = samples[i];
 
-    if (sample.obd.vehicleSpeed > summary.maxSpeedKph) {
-      summary.maxSpeedKph = sample.obd.vehicleSpeed;
-    }
-    if (sample.obd.engineRpm > summary.maxRpm) {
-      summary.maxRpm = sample.obd.engineRpm;
-    }
+    totalSpeed += s.obd.vehicleSpeed;
+    totalRpm   += s.obd.engineRpm;
+    totalFuelRateMlps += s.obd.fuelConsumptionRate; // ml/s
+
+    if (s.obd.vehicleSpeed > summary.maxSpeedKph) summary.maxSpeedKph = s.obd.vehicleSpeed;
+    if (s.obd.engineRpm    > summary.maxRpm)      summary.maxRpm     = s.obd.engineRpm;
 
     if (i > 0) {
-      const prevSample = samples[i - 1];
-      const timeDiff = (sample.timestamp.getTime() - prevSample.timestamp.getTime()) / 1000; // in seconds
-      summary.durationSec += timeDiff;
-      summary.distanceKm += (sample.obd.vehicleSpeed / 3600) * timeDiff;
-      summary.fuelUsedL += (sample.obd.fuelConsumptionRate / 1000) * timeDiff;
+      const p = samples[i - 1];
+      const dt = (s.timestamp.getTime() - p.timestamp.getTime()) / 1000; // s
 
-      if (sample.gps.latitude !== prevSample.gps.latitude || sample.gps.longitude !== prevSample.gps.longitude) {
-        summary.route.push({
-          latitude: sample.gps.latitude,
-          longitude: sample.gps.longitude,
-        });
+      summary.durationSec += dt;
+
+      // If you still want speed-based distance here:
+      summary.distanceKm += (s.obd.vehicleSpeed / 3600) * dt;
+
+      // Fuel used: ml/s -> L over dt
+      summary.fuelUsedL += (s.obd.fuelConsumptionRate / 1000) * dt;
+
+      if (s.gps.latitude !== p.gps.latitude || s.gps.longitude !== p.gps.longitude) {
+        summary.route.push({ latitude: s.gps.latitude, longitude: s.gps.longitude });
       }
     } else {
-      summary.route.push({
-        latitude: sample.gps.latitude,
-        longitude: sample.gps.longitude,
-      });
+      summary.route.push({ latitude: s.gps.latitude, longitude: s.gps.longitude });
     }
   }
 
-  summary.avgSpeedKph = parseFloat((totalSpeed / samples.length).toFixed(1));
-  summary.avgRpm = Math.round(totalRpm / samples.length);
-  const avgFuelRateMls = totalFuelRate / samples.length;
-  summary.avgFuelRateLph = parseFloat((avgFuelRateMls * 3.6).toFixed(2));
+  const n = Math.max(1, samples.length);
+  summary.avgSpeedKph   = parseFloat((totalSpeed / n).toFixed(1));
+  summary.avgRpm        = Math.round(totalRpm / n);
+
+  // Average ml/s -> L/h
+  const avgMlps = totalFuelRateMlps / n;
+  summary.avgFuelRateLph = parseFloat((avgMlps * 3.6).toFixed(2));
+
+  // Final rounding / formatting
   summary.distanceKm = parseFloat(summary.distanceKm.toFixed(2));
-  summary.fuelUsedL = parseFloat(summary.fuelUsedL.toFixed(2));
+  summary.fuelUsedL  = parseFloat(summary.fuelUsedL.toFixed(2));
   summary.maxSpeedKph = Math.round(summary.maxSpeedKph);
-  summary.maxRpm = Math.round(summary.maxRpm);
+  summary.maxRpm      = Math.round(summary.maxRpm);
 
   return summary;
 };
