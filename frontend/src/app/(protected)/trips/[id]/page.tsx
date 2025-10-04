@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { getTripById } from '@/services/trip.service';
+import { getTripById, reanalyzeTrip, deleteTrip } from '@/services/trip.service';
 import { Trip } from '@/types/trip.types';
-import { Paper, Title, Text, Grid, Button } from '@mantine/core';
+import { Paper, Title, Text, Grid, Button, Group } from '@mantine/core';
 import { MapContainer, TileLayer, Polyline, CircleMarker } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -12,6 +12,8 @@ const TripDetailsPage = () => {
   const { id } = useParams();
   const router = useRouter();
   const [trip, setTrip] = useState<Trip | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const formatDuration = (totalSeconds: number) => {
     const seconds = Math.round(totalSeconds);
@@ -27,6 +29,36 @@ const TripDetailsPage = () => {
     formatted += `${remainingSeconds}s`;
 
     return formatted.trim();
+  };
+
+  const handleReanalyze = async () => {
+    if (!id) return;
+    setLoading(true);
+    setError(null);
+    try {
+      await reanalyzeTrip(id as string);
+      window.location.reload();
+    } catch {
+      setError('Failed to reanalyze trip');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!id) return;
+    if (window.confirm('Are you sure you want to delete this trip?')) {
+      setLoading(true);
+      setError(null);
+      try {
+        await deleteTrip(id as string);
+        router.push('/trips');
+      } catch {
+        setError('Failed to delete trip');
+      } finally {
+        setLoading(false);
+      }
+    }
   };
 
   useEffect(() => {
@@ -50,7 +82,18 @@ const TripDetailsPage = () => {
       <Button onClick={() => router.back()} mb="md">
         Return
       </Button>
-      <Title order={2}>Trip Details</Title>
+      <Group justify="apart" mb="md">
+        <Title order={2}>Trip Details</Title>
+        <Group>
+          <Button onClick={handleReanalyze} disabled={loading}>
+            {loading ? 'Reanalyzing...' : 'Re-analyze'}
+          </Button>
+          <Button color="red" onClick={handleDelete} disabled={loading}>
+            {loading ? 'Deleting...' : 'Delete'}
+          </Button>
+        </Group>
+      </Group>
+      {error && <Text color="red">{error}</Text>}
       <Grid>
         <Grid.Col span={8}>
           <Paper withBorder radius="md" p="md" style={{ height: '400px' }}>

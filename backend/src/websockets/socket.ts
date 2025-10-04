@@ -9,7 +9,7 @@ import { VehicleModel } from '../models/vehicle.model';
 import { TripModel } from '../models/trip.model';
 import { Types } from 'mongoose';
 
-import { sendToQueue } from '../services/rabbitmq.service';
+import { RabbitMQService } from '../services/rabbitmq.service';
 
 // --- Protocol Constants ---
 const FrameType = { CONTROL: 0, DATA: 1 };
@@ -190,7 +190,8 @@ class ClientConnection {
       case CommandType.END_TRIP_REQ:
         if (this.tripId) {
           await TripModel.findByIdAndUpdate(this.tripId, { $set: { status: 'completed', endTime: new Date() } });
-          sendToQueue(JSON.stringify({ tripId: this.tripId }));
+          const rabbitMQService = await RabbitMQService.getInstance();
+          await rabbitMQService.sendMessage('trip-analysis', JSON.stringify({ tripId: this.tripId }));
         }
         this.tripId = null;
         this.send(Buffer.from([CommandType.END_TRIP_OK]));

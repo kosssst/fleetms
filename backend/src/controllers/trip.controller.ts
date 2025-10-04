@@ -3,6 +3,7 @@ import asyncHandler from 'express-async-handler';
 import { TripModel } from '../models/trip.model';
 import { SampleModel } from '../models/sample.model';
 import { User } from '../types/user.types';
+import { RabbitMQService } from '../services/rabbitmq.service';
 
 interface RequestWithUser extends Request {
   user?: User;
@@ -64,4 +65,48 @@ export const getSamplesForTrip = asyncHandler(async (req: RequestWithUser, res: 
 
   const samples = await SampleModel.find({ tripId: id });
   res.json(samples);
+});
+
+export const reanalyzeTrip = asyncHandler(async (req: RequestWithUser, res: Response) => {
+  const { id } = req.params;
+  const user = req.user;
+
+  if (!user || !user.companyId) {
+    res.status(401);
+    throw new Error('Not authorized');
+  }
+
+  const trip = await TripModel.findOne({ _id: id, companyId: user.companyId });
+
+  if (!trip) {
+    res.status(404);
+    throw new Error('Trip not found');
+  }
+
+  const rabbitMQService = await RabbitMQService.getInstance();
+  await rabbitMQService.sendMessage('trip-analysis', JSON.stringify({ tripId: trip._id }));
+
+  res.status(200).json({ message: 'Reanalysis started' });
+});
+
+export const deleteTrip = asyncHandler(async (req: RequestWithUser, res: Response) => {
+  const { id } = req.params;
+  const user = req.user;
+
+  if (!user || !user.companyId) {
+    res.status(401);
+    throw new Error('Not authorized');
+  }
+
+  const trip = await TripModel.findOne({ _id: id, companyId: user.companyId });
+
+  if (!trip) {
+    res.status(404);
+    throw new Error('Trip not found');
+  }
+
+  await SampleModel.deleteMany({ tripId: id });
+  await TripModel.deleteOne({ _id: id });
+
+  res.status(200).json({ message: 'Trip deleted' });
 });

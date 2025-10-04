@@ -10,3 +10,11 @@ export const getTripById = async (id: string): Promise<Trip> => {
   const response = await axiosInstance.get(`/trips/${id}`);
   return response.data;
 };
+
+export const reanalyzeTrip = async (id: string): Promise<void> => {
+  await axiosInstance.post(`/trips/${id}/reanalyze`);
+};
+
+export const deleteTrip = async (id: string): Promise<void> => {
+  await axiosInstance.delete(`/trips/${id}`);
+};

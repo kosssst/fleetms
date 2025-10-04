@@ -6,7 +6,6 @@ import morgan from 'morgan';
 import { connectDB } from './db/mongoose';
 import { notFound, errorHandler } from './middleware/error.middleware';
 import { initWebSocketServer } from './websockets/socket';
-import { connectRabbitMQ } from './services/rabbitmq.service';
 
 import authRoutes from './routes/auth.routes';
 import companyRoutes from './routes/company.routes';
@@ -17,7 +16,6 @@ import tripRoutes from './routes/trip.routes';
 dotenv.config();
 
 connectDB();
-connectRabbitMQ();
 
 const app: Express = express();
 const port = process.env.PORT || 8000;

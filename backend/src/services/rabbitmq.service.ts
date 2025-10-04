@@ -1,24 +1,35 @@
 import amqp from 'amqplib';
 
-const RABBITMQ_URL = process.env.RABBITMQ_URL || 'amqp://localhost';
-const QUEUE_NAME = 'trip_analysis';
+export class RabbitMQService {
+  private static instance: RabbitMQService;
+  private connection: amqp.Connection | null = null;
+  private channel: amqp.Channel | null = null;
 
-let connection: any = null;
-let channel: any = null;
+  private constructor() {}
 
-export const connectRabbitMQ = async () => {
-  try {
-    connection = await amqp.connect(RABBITMQ_URL);
-    channel = await connection.createChannel();
-    await channel.assertQueue(QUEUE_NAME, { durable: true });
-    console.log('Connected to RabbitMQ');
-  } catch (error) {
-    console.error('Failed to connect to RabbitMQ:', error);
+  public static async getInstance(): Promise<RabbitMQService> {
+    if (!RabbitMQService.instance) {
+      RabbitMQService.instance = new RabbitMQService();
+      await RabbitMQService.instance.connect();
+    }
+    return RabbitMQService.instance;
   }
-};
 
-export const sendToQueue = (message: string) => {
-  if (channel) {
-    channel.sendToQueue(QUEUE_NAME, Buffer.from(message), { persistent: true });
+  private async connect() {
+    try {
+      const RABBITMQ_URL = process.env.RABBITMQ_URL || 'amqp://localhost';
+      this.connection = await amqp.connect(RABBITMQ_URL) as any;
+      this.channel = await (this.connection as any).createChannel();
+      console.log('Connected to RabbitMQ');
+    } catch (error) {
+      console.error('Failed to connect to RabbitMQ:', error);
+    }
   }
-};
+
+  public async sendMessage(queue: string, message: string) {
+    if (this.channel) {
+      await (this.channel as any).assertQueue(queue, { durable: true });
+      (this.channel as any).sendToQueue(queue, Buffer.from(message), { persistent: true });
+    }
+  }
+}
