@@ -20,10 +20,10 @@ const connectRabbitMQ = async () => {
   try {
     const connection = await amqp.connect(RABBITMQ_URL);
     const channel = await connection.createChannel();
-    await channel.assertQueue('trip_analysis', { durable: true });
+    await channel.assertQueue('trip-analysis', { durable: true });
     console.log('Connected to RabbitMQ');
 
-    channel.consume('trip_analysis', async (msg) => {
+    channel.consume('trip-analysis', async (msg) => {
       if (msg) {
         const { tripId } = JSON.parse(msg.content.toString());
         await analyzeTrip(tripId);
