@@ -83,6 +83,7 @@ export const reanalyzeTrip = asyncHandler(async (req: RequestWithUser, res: Resp
     throw new Error('Trip not found');
   }
 
+  console.log(`Reanalyzing trip ${id}`);
   const rabbitMQService = await RabbitMQService.getInstance();
   await rabbitMQService.sendMessage('trip-analysis', JSON.stringify({ tripId: trip._id }));
 
