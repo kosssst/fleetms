@@ -218,14 +218,14 @@ class ClientConnection {
         gps: {
           longitude: record.readInt32BE(8) / 10000000,
           latitude: record.readInt32BE(12) / 10000000,
-          altitude: record.readInt32BE(16),
+          altitude: record.readInt32BE(16) / 100,
         },
         obd: {
-          vehicleSpeed: record.readUInt16BE(20),
+          vehicleSpeed: record.readUInt16BE(20) / 100,
           engineRpm: record.readUInt16BE(22),
-          acceleratorPosition: record.readUInt16BE(24),
-          engineCoolantTemp: record.readUInt16BE(26),
-          intakeAirTemp: record.readUInt16BE(28),
+          acceleratorPosition: record.readUInt16BE(24) / 10,
+          engineCoolantTemp: record.readUInt16BE(26) / 100,
+          intakeAirTemp: record.readUInt16BE(28) / 100,
           fuelConsumptionRate: record.readUInt16BE(30) / 1000,
         },
       });
