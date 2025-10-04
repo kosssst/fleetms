@@ -38,7 +38,7 @@ jobs:
             cd "$PR_DIR"
             
             echo "Running docker-compose"
-            sudo docker compose -f docker-compose-stage.yml up -d --build
+            sudo docker compose -f docker-compose-stage.yml up -d --build --force-recreate
 
   cleanup:
     if: github.event.action == 'closed'

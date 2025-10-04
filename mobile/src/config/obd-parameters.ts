@@ -23,7 +23,7 @@ export const obdParameters: ObdParameter[] = [
   },
   {
     command: '21A1',
-    startByte: 50,
+    startByte: 51,
     numBits: 16,
     header: 'accelerator_position',
     decoder: 'acceleratorPositionDecoder',

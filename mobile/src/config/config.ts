@@ -3,8 +3,8 @@ import Config from "react-native-config";
 export default {
   API_URL: Config.API_URL,
   WEBSOCKET_URL: Config.WEBSOCKET_URL,
-  READ_TIMEOUT_PRIMARY: parseFloat(Config.READ_TIMEOUT_PRIMARY || '0.65'),
-  READ_TIMEOUT_RETRY: parseFloat(Config.READ_TIMEOUT_RETRY || '0.9'),
+  READ_TIMEOUT_PRIMARY: parseFloat(Config.READ_TIMEOUT_PRIMARY || '1.3'),
+  READ_TIMEOUT_RETRY: parseFloat(Config.READ_TIMEOUT_RETRY || '1.8'),
   KEEPALIVE_PERIOD: parseFloat(Config.KEEPALIVE_PERIOD || '1.8'),
   SAMPLE_PERIOD_SEC: parseFloat(Config.SAMPLE_PERIOD_SEC || '0.6'),
   INTERROGATE_DEVICE_TIMEOUT_1: parseInt(Config.INTERROGATE_DEVICE_TIMEOUT_1 || '3500', 10),

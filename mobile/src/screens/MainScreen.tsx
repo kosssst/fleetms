@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Text } from 'react-native';
+import { View, StyleSheet, ScrollView } from 'react-native';
 import { Button, Card, Title, Paragraph, useTheme, MD3Theme } from 'react-native-paper';
 import { useAuth } from '../contexts/AuthContext';
 import { useBluetooth } from '../contexts/BluetoothContext';
@@ -16,7 +16,6 @@ import { obdTask } from '../tasks/obdTask';
 import { obdService } from '../services/obd.service';
 
 import { locationService } from '../services/location.service';
-import appConfig from '../config/config';
 
 import { senderTask } from '../tasks/senderTask';
 
@@ -93,7 +92,7 @@ const MainScreen = () => {
           ...obdBackgroundOptions,
           parameters: {
             tripId,
-            numberOfCylinders: vehicle?.numberOfCylinders || 0,
+            numberOfCylinders: vehicle?.numberOfCylinders || 4,
           },
         };
         await BackgroundService.start(obdTask, options);
