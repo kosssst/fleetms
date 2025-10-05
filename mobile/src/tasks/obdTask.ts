@@ -31,15 +31,6 @@ export const obdTask = async (params?: ObdTaskParams) => {
       }
       if (!BackgroundService.isRunning()) return resolve();
 
-      // Open trip on server
-      webSocketService.startTrip();
-      {
-        const t0 = Date.now();
-        while (BackgroundService.isRunning() && !webSocketService.getTripId() && Date.now() - t0 < 15000) {
-          await sleep(200);
-        }
-      }
-
       // Start OBD trip + ticker polling (native timer inside service)
       obdService.startTrip();
 

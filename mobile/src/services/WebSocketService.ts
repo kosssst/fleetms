@@ -44,6 +44,7 @@ class WebSocketService {
   private log: LogCallback = () => {};
   private lastToken: string | null = null;
   private offlineQueue: Buffer[] = [];
+  private tripReady: boolean = false;
 
   private resetInactivityTimer() {
     if (this.inactivityTimer) {
@@ -72,9 +73,14 @@ class WebSocketService {
       this.log = logCallback;
     }
 
+    // If we're already connecting/connected, do NOT touch tripReady.
     if (this.socket && (this.status === 'connecting' || this.status === 'connected')) {
       return;
     }
+
+    // Only reset when we truly begin a new connection
+    this.tripReady = false;              // <--- moved here
+
     if (!appConfig.WEBSOCKET_URL) {
       this.log('Socket: WebSocket URL is not configured.');
       return;
@@ -173,9 +179,11 @@ class WebSocketService {
           this.handleStartTripOk(data);
           break;
         case 0x05: // RESUME_TRIP_OK
+          this.handleResumeTripOk();
           this.log('Socket: Trip resumed successfully.');
           break;
         case 0x07: // END_TRIP_OK
+          this.tripReady = false;
           this.tripId = null;
           break;
         case 0x08: // ACK
@@ -193,16 +201,27 @@ class WebSocketService {
   private handleAuthOk(data: Buffer) {
     const sessionIdLength = data.readUInt16BE(1);
     this.sessionId = data.slice(3, 3 + sessionIdLength).toString();
+
     this.sendConfigRequest();
+
+    // If we had a trip, resume it — but DO NOT flush data yet.
     if (this.tripId) {
       this.resumeTrip();
     }
-    this.sendOfflineData();
+    // ❌ DO NOT call sendOfflineData() here.
   }
 
   private handleStartTripOk(data: Buffer) {
     const tripIdLength = data.readUInt16BE(1);
     this.tripId = data.slice(3, 3 + tripIdLength).toString('hex');
+    this.tripReady = true;            // <--- NEW
+    this.sendOfflineData();           // <--- NOW safe to flush
+  }
+
+  private handleResumeTripOk() {
+    this.tripReady = true;            // <--- NEW
+    this.log('Socket: Trip resumed successfully.');
+    this.sendOfflineData();           // <--- NOW safe to flush
   }
 
   private handleConfigAck(data: Buffer) {
@@ -220,6 +239,7 @@ class WebSocketService {
   }
 
   startTrip() {
+    this.tripReady = false;
     const header = Buffer.alloc(1);
     header.writeUInt8(0x02, 0);
     this.sendMessage(header);
@@ -243,14 +263,16 @@ class WebSocketService {
   }
 
   endTrip() {
+    this.tripReady = false;
     const header = Buffer.alloc(1);
     header.writeUInt8(0x06, 0);
     this.sendMessage(header);
   }
 
   sendDataFrames(frames: Buffer[]) {
-    if (!this.isConnected()) {
-      this.log(`Socket: not connected. Queuing ${frames.length} frames.`);
+    // If not connected or trip not ready, just queue
+    if (!this.isConnected() || !this.tripReady) {
+      this.log(`Socket: not ready (${this.isConnected()?'conn':'disc'}/${this.tripReady?'ready':'not-ready'}). Queuing ${frames.length} frames.`);
       this.offlineQueue.push(...frames);
       return;
     }
@@ -266,10 +288,10 @@ class WebSocketService {
     this.sendMessage(message);
   }
 
+
   private sendOfflineData() {
-    if (this.offlineQueue.length === 0) {
-      return;
-    }
+    if (!this.tripReady || !this.isConnected()) return; // <--- NEW guard
+    if (this.offlineQueue.length === 0) return;
 
     this.log(`Socket: Sending ${this.offlineQueue.length} offline frames.`);
     const framesToSend = [...this.offlineQueue];
@@ -290,6 +312,7 @@ class WebSocketService {
 
   disconnect() {
     this.isIntentionalDisconnect = true;
+    this.tripReady = false;
     this.socket?.close();
   }
 }
