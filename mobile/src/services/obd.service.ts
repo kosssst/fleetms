@@ -303,7 +303,7 @@ class OBDService {
         ml_per_s = Number.isFinite(computed) && computed >= 0.05 ? computed : 0;
       }
       decNow.fuel_consumption_rate = ml_per_s;
-      rawNow.fuel_consumption_rate = Math.min(0xFFFF, Math.max(0, Math.round(ml_per_s)));
+      rawNow.fuel_consumption_rate = Math.min(0xFFFF, Math.max(0, Math.round(ml_per_s * 100)));
 
       // cache + emit
       Object.assign(this.lastRaw, rawNow);
