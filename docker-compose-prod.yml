@@ -15,8 +15,10 @@ services:
       - WEBSOCKET_T1=${WEBSOCKET_T1}
       - WEBSOCKET_T2=${WEBSOCKET_T2}
     depends_on:
-      - mongo
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
+      mongo:
+        condition: service_started
     networks:
       - fleetms-network
 
@@ -56,6 +58,11 @@ services:
     environment:
       - RABBITMQ_DEFAULT_USER=${RABBITMQ_DEFAULT_USER}
       - RABBITMQ_DEFAULT_PASS=${RABBITMQ_DEFAULT_PASS}
+    healthcheck:
+      test: [ "CMD", "rabbitmq-diagnostics", "ping" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
     networks:
       - fleetms-network
 
@@ -66,8 +73,10 @@ services:
       - MONGODB_URI=mongodb://mongo:27017/fleetms
       - RABBITMQ_URL=amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672
     depends_on:
-      - rabbitmq
-      - mongo
+      rabbitmq:
+        condition: service_healthy
+      mongo:
+        condition: service_started
     networks:
       - fleetms-network
 
