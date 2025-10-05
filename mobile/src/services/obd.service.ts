@@ -1,3 +1,4 @@
+/* eslint-disable no-bitwise */
 import RNBluetoothClassic,
 {
   BluetoothDevice,
@@ -13,6 +14,7 @@ import {
 } from '../utils/decoders';
 import { obdParameters, ObdParameter } from '../config/obd-parameters';
 import config from '../config/config';
+import BackgroundTimer from 'react-native-background-timer';
 
 type InitStep = {
   cmd: string;
@@ -66,6 +68,7 @@ class OBDService {
   private keepAliveTimer: any = null;
   private dataListeners: Set<DataCallback> = new Set();
   private connectionStatus: 'disconnected' | 'searching' | 'connected' | 'error' = 'disconnected';
+  private keepAliveTimerId: number | null = null;
 
   private commandsMap: CommandMap = {};
   private headerPrimed = false;
@@ -92,6 +95,11 @@ class OBDService {
   private lastDecoded: Record<string, number> = {};
 
   private headersOrder: string[] = [];
+  private lastIoTs = 0;          // last write/read completion
+  private ioBusy = false;        // true while a command is in flight
+  private _tickerRunning = false;
+  private pollTimerId: number | null = null;
+  private _pumping = false;
 
   constructor() {
     this.loadCommandTable();
@@ -139,6 +147,183 @@ class OBDService {
     });
 
     this.headersOrder = headers;
+  }
+
+  private startKeepAliveTicker() {
+    if (this.keepAliveTimerId != null) return;
+
+    this.keepAliveTimerId = BackgroundTimer.setInterval(async () => {
+      try {
+        if (!this.device || !this.isTripActive) return;
+
+        // Don’t collide with active I/O from sendCommand/pumpOnce
+        if (this.ioBusy) return;
+
+        const idleMs = Date.now() - this.lastIoTs;
+        // Only nudge if the line has been quiet long enough
+        if (idleMs >= 1200) {
+          this.ioBusy = true;                // reserve briefly
+          await this.device.write('3E01\r'); // tester present (write-only)
+          this.lastIoTs = Date.now();
+          console.log('[KA] tester present nudge');
+        }
+      } catch {
+        // best-effort
+      } finally {
+        this.ioBusy = false;
+      }
+    }, 550); // short period; real send is gated by idle time
+  }
+
+  private stopKeepAliveTicker() {
+    if (this.keepAliveTimerId != null) {
+      try { BackgroundTimer.clearInterval(this.keepAliveTimerId); } catch {}
+      this.keepAliveTimerId = null;
+    }
+  }
+
+  public async pumpOnce(
+    numberOfCylinders: number,
+    getLocation: () => { latitude?: number; longitude?: number; altitude?: number },
+    sendDataCallback: (data: Buffer) => void
+  ): Promise<void> {
+    if (!this.device || !this.isTripActive) return;
+    if (this._pumping) return;
+    this._pumping = true;
+
+    const DENSITY_MG_PER_ML = 835; // diesel
+    const ZERO_RAW = 0x0097, FULL_RAW = 0x0339;
+
+    try {
+      // fresh batch
+      const rawNow: Record<string, number> = {};
+      const decNow: Record<string, number> = {};
+
+      // keep header primed
+      if (!this.headerPrimed) {
+        try { await this.sendCommand('ATSH 81 7A F1', 300); } catch {}
+        this.headerPrimed = true;
+      }
+
+      let sawA0 = false, sawA1 = false;
+      const perCmdTimeoutMs = 320;
+      const tinyGapMs = 8;
+
+      // ---- 21A0 ----
+      try {
+        const resp = await this.sendCommand('21A0', perCmdTimeoutMs);
+        if (/STOPPED/i.test(resp)) { this.headerPrimed = false; this.quickResync().catch(() => {}); }
+        const payload = this.extractPayload('21A0', resp, 16) || Buffer.alloc(0);
+        if (payload.length) {
+          sawA0 = true;
+          const rpmRaw = this.u16be(payload, 13);
+          if (rpmRaw != null) { rawNow.engine_speed = rpmRaw; decNow.engine_speed = rpmRaw; }
+          const spdRaw = this.u16be(payload, 15);
+          if (spdRaw != null) {
+            decNow.vehicle_speed = spdRaw / 100.0;
+            rawNow.vehicle_speed = Math.min(0xFFFF, Math.max(0, Math.round(decNow.vehicle_speed * 100)));
+          }
+        }
+      } catch { this.headerPrimed = false; }
+      if (tinyGapMs) await new Promise(r => setTimeout(r, tinyGapMs));
+
+      // ---- 21A1 ----
+      try {
+        const resp = await this.sendCommand('21A1', perCmdTimeoutMs);
+        if (/STOPPED/i.test(resp)) { this.headerPrimed = false; this.quickResync().catch(() => {}); }
+        const payload = this.extractPayload('21A1', resp, 52) || Buffer.alloc(0);
+        if (payload.length) {
+          sawA1 = true;
+
+          const accelRaw = this.u16be(payload, 52);
+          if (accelRaw != null) {
+            const span = FULL_RAW - ZERO_RAW;
+            let percent = (accelRaw - ZERO_RAW) * 100 / span;
+            if (!Number.isFinite(percent)) percent = 0;
+            percent = Math.max(0, Math.min(100, percent));
+            decNow.accelerator_position = percent;
+            const pedalRaw = Math.round(ZERO_RAW + (percent * span) / 100);
+            rawNow.accelerator_position = Math.max(0, Math.min(0xFFFF, pedalRaw));
+          }
+
+          const coolRaw = this.u16be(payload, 25);
+          if (coolRaw != null) {
+            decNow.engine_coolant_temp = (coolRaw / 10.0) - 273.15;
+            rawNow.engine_coolant_temp = Math.min(0xFFFF, Math.max(0, Math.round((decNow.engine_coolant_temp + 273.15) * 10)));
+          }
+
+          const iatRaw = this.u16be(payload, 27);
+          if (iatRaw != null) {
+            decNow.intake_air_temp = (iatRaw / 10.0) - 273.15;
+            rawNow.intake_air_temp = Math.min(0xFFFF, Math.max(0, Math.round((decNow.intake_air_temp + 273.15) * 10)));
+          }
+        }
+      } catch { this.headerPrimed = false; }
+      if (tinyGapMs) await new Promise(r => setTimeout(r, tinyGapMs));
+
+      // ---- 21A5 ----
+      try {
+        const resp = await this.sendCommand('21A5', perCmdTimeoutMs);
+        if (/STOPPED/i.test(resp)) { this.headerPrimed = false; this.quickResync().catch(() => {}); }
+        const payload = this.extractPayload('21A5', resp, 12) || Buffer.alloc(0);
+        if (payload.length) {
+          const fpsRaw = this.u16be(payload, 9);
+          if (fpsRaw != null) {
+            decNow.fuel_per_stroke = fuelPerStrokeDecoder(Buffer.from([payload[8], payload[9]]));
+          }
+        }
+      } catch { this.headerPrimed = false; }
+
+      // carry-forward + miss handling
+      const keys: (keyof typeof this.lastRaw)[] = [
+        'vehicle_speed', 'engine_speed', 'accelerator_position',
+        'engine_coolant_temp', 'intake_air_temp'
+      ];
+      for (const k of keys) {
+        const seen = rawNow[k] !== undefined || decNow[k] !== undefined;
+        this.bumpOrResetMiss(k, seen);
+        if (rawNow[k] === undefined) rawNow[k] = this.lastRaw[k] ?? 0;
+        if (decNow[k] === undefined && this.lastDecoded[k] !== undefined) {
+          decNow[k] = this.lastDecoded[k];
+        }
+      }
+      if (!sawA0) this.bumpOrResetMiss('engine_speed', false);
+      if (!sawA1) {
+        this.bumpOrResetMiss('engine_coolant_temp', false);
+        this.bumpOrResetMiss('intake_air_temp', false);
+      }
+
+      // fuel rate (mL/s)
+      let ml_per_s = 0;
+      const rpm = Number(rawNow.engine_speed ?? 0) || 0;
+      const mgStroke = Number(decNow.fuel_per_stroke ?? this.lastDecoded.fuel_per_stroke ?? 0) || 0;
+      if (rpm >= 100 && mgStroke > 0 && Number.isFinite(mgStroke)) {
+        const mg_per_s = (mgStroke * (rpm * numberOfCylinders)) / 120;
+        const computed = mg_per_s / DENSITY_MG_PER_ML;
+        ml_per_s = Number.isFinite(computed) && computed >= 0.05 ? computed : 0;
+      }
+      decNow.fuel_consumption_rate = ml_per_s;
+      rawNow.fuel_consumption_rate = Math.min(0xFFFF, Math.max(0, Math.round(ml_per_s)));
+
+      // cache + emit
+      Object.assign(this.lastRaw, rawNow);
+      Object.assign(this.lastDecoded, decNow);
+
+      if (this.isTripActive) {
+        this.notifyListeners({ ...this.lastDecoded });
+        const loc = getLocation();
+        const frame = this.createDataFrame(rawNow, loc.latitude, loc.longitude, loc.altitude);
+        sendDataCallback(frame);
+      }
+
+      // best-effort KA only if idle
+      await this.testerPresentNudgeIfIdle(1400);
+    } catch (err) {
+      console.warn('[pumpOnce] error:', err);
+      this.headerPrimed = false;
+    } finally {
+      this._pumping = false;
+    }
   }
 
   async requestPermissions(onLog: LogCallback): Promise<boolean> {
@@ -391,26 +576,46 @@ class OBDService {
     cmd: string,
     timeout?: number,
     accumulateMs?: number,
-    // ignoreBarePromptOnce: boolean = false
   ): Promise<string> {
     if (!this.device) throw new Error('Device not connected');
     this.clearKeepAlive();
+
+    this.ioBusy = true;                 // <--- start of critical I/O
     try {
       await this.device.clear();
       const readP = this.readUntilDelimiter(
         this.device,
         timeout ?? SEND_COMMAND_DEFAULT_TIMEOUT,
-        { accumulateMs } // delimiter mode: no '>' in event.data; no need to track ignoreBare here
+        { accumulateMs }
       );
-      // ↓ Python QUIET_DELAY_S is ~12 ms. Use same here.
       await this.device.write(cmd + '\r');
-      await new Promise(r => setTimeout(r, accumulateMs ? 12 : 12));
-      return await readP;
+      this.lastIoTs = Date.now();       // record write time
+      await new Promise(r => setTimeout(r, 12));
+      const resp = await readP;
+      this.lastIoTs = Date.now();       // record read completion
+      return resp;
     } finally {
+      this.ioBusy = false;              // <--- end of critical I/O
       if (!this.inInit) this.scheduleKeepAlive();
     }
   }
 
+  public async testerPresentNudgeIfIdle(minIdleMs = 1400): Promise<void> {
+    try {
+      if (!this.device || !this.isTripActive) return;
+      if (this.ioBusy) return;                                 // don't collide with poll I/O
+      const idle = Date.now() - this.lastIoTs;
+      if (idle < minIdleMs) return;
+      this.ioBusy = true;                                      // reserve the line briefly
+      await this.device.write('3E01\r');                       // write-only
+      this.lastIoTs = Date.now();
+      console.log('Sent tester present nudge');
+    } catch {
+      // best-effort
+    } finally {
+      this.ioBusy = false;
+    }
+  }
 
   private async resync(): Promise<void> {
     if (!this.device) return;
@@ -492,11 +697,21 @@ class OBDService {
     numberOfCylinders: number,
     getLocation: () => { latitude?: number; longitude?: number; altitude?: number },
   ) {
-    if (this.isPolling) {
-      return;
-    }
+    if (this.isPolling) return;
     this.isPolling = true;
-    this.pollingPromise = this.poll(sendDataCallback, numberOfCylinders, getLocation);
+
+    // Make sure KA runs regardless of polling health
+    this.startKeepAliveTicker();
+
+    const periodMs = Math.max(300, Math.floor(SAMPLE_PERIOD_SEC * 1000));
+    this.pollTimerId = BackgroundTimer.setInterval(async () => {
+      if (!this.isTripActive) return;
+      try {
+        await this.pumpOnce(numberOfCylinders, getLocation, sendDataCallback);
+      } catch (e) {
+        console.warn('[startPolling] tick error:', e);
+      }
+    }, periodMs);
   }
 
   private u16be(payload: Buffer, firstByte1Based: number): number | null {
@@ -538,7 +753,10 @@ class OBDService {
           // ---- 21A0: vehicle speed + *current* engine rpm (bytes 13–14) ----
           try {
             const resp = await this.sendCommand('21A0', perCmdTimeoutMs);
-            if (/STOPPED/i.test(resp)) this.headerPrimed = false;
+            if (/STOPPED/i.test(resp)) {
+              this.headerPrimed = false;
+              this.quickResync().catch(() => {});
+            }
             const payload = this.extractPayload('21A0', resp, 16) || Buffer.alloc(0);
             if (payload.length) {
               sawA0 = true;
@@ -565,7 +783,10 @@ class OBDService {
           // ---- 21A1: accel %, coolant, intake temps ----
           try {
             const resp = await this.sendCommand('21A1', perCmdTimeoutMs);
-            if (/STOPPED/i.test(resp)) this.headerPrimed = false;
+            if (/STOPPED/i.test(resp)) {
+              this.headerPrimed = false;
+              this.quickResync().catch(() => {});
+            }
             const payload = this.extractPayload('21A1', resp, 52) || Buffer.alloc(0);
             if (payload.length) {
               sawA1 = true;
@@ -608,7 +829,10 @@ class OBDService {
           // ---- 21A5: fuel per stroke (mg/stroke) at bytes 9–10 ----
           try {
             const resp = await this.sendCommand('21A5', perCmdTimeoutMs);
-            if (/STOPPED/i.test(resp)) this.headerPrimed = false;
+            if (/STOPPED/i.test(resp)) {
+              this.headerPrimed = false;
+              this.quickResync().catch(() => {});
+            }
             const payload = this.extractPayload('21A5', resp, 12) || Buffer.alloc(0);
             if (payload.length) {
               // sawA5 = true;
@@ -683,10 +907,34 @@ class OBDService {
         console.warn('[poll] cycle error:', err);
         this.headerPrimed = false; // force re-prime next lap
       }
+
+      await this.testerPresentNudgeIfIdle(1400);
+
       const elapsed = Date.now() - t0;
       console.log(`elapsed: ${elapsed/1000}s`);
       const delay = Math.max(0, SAMPLE_PERIOD_SEC * 1000 - elapsed);
       if (delay > 0) await new Promise(r => setTimeout(r, delay));
+    }
+  }
+
+  public async testerPresentNudge(): Promise<void> {
+    try {
+      if (!this.device) return;
+      await this.device.write('3E01\r');
+    } catch {
+      // swallow — it's a best-effort poke
+    }
+  }
+
+  private async quickResync(): Promise<void> {
+    try {
+      // Don’t be fancy—just reselect header and poke session back up.
+      await this.sendCommand('ATSH 81 7A F1', 300);
+      await this.sendCommand('3E01', 400);
+      await this.sendCommand('10C0', 800);
+      this.headerPrimed = true;
+    } catch {
+      this.headerPrimed = false;
     }
   }
 
@@ -747,29 +995,32 @@ class OBDService {
 
   async stopPolling() {
     this.isPolling = false;
-    if (this.pollingPromise) {
-      await this.pollingPromise;
-      this.pollingPromise = null;
+    if (this.pollTimerId != null) {
+      try { BackgroundTimer.clearInterval(this.pollTimerId); } catch {}
+      this.pollTimerId = null;
     }
+    // Let KA stop when you stop polling/trip
+    this.stopKeepAliveTicker();
   }
 
   startTrip() {
     this.isTripActive = true;
     if (!this.headerPrimed && this.device) {
-      // best-effort, don't block the UI if it fails; next poll will try again
       this.sendCommand('ATSH 81 7A F1', 400).catch(() => {});
       this.headerPrimed = true;
     }
+    this.startKeepAliveTicker();     // <-- ensure KA is running during trip
   }
 
   stopTrip() {
     this.isTripActive = false;
-    // When the trip ends, periodic KA can resume
-    this.scheduleKeepAlive();
+    this.stopKeepAliveTicker();      // <-- stop KA when trip stops
+    this.scheduleKeepAlive();        // your existing idle (non-trip) KA is fine
   }
 
   pauseTrip() {
     this.isTripActive = false;
+    this.stopKeepAliveTicker();      // <-- pause KA too
     this.scheduleKeepAlive();
   }
 

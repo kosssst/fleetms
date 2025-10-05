@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './src/contexts/AuthContext';
 import { SocketProvider, useSocket } from './src/contexts/SocketContext';
 import { BluetoothProvider } from './src/contexts/BluetoothContext';
 import AppNavigator from './src/navigation/AppNavigator';
+import './src/polyfills/nativeEventEmitterShim';
 
 const AppContent = () => {
   const { user, token } = useAuth();

@@ -22,9 +22,4 @@ class MainActivity : ReactActivity() {
   override fun createReactActivityDelegate(): ReactActivityDelegate =
       DefaultReactActivityDelegate(this, mainComponentName, fabricEnabled)
 
-  override fun onDestroy() {
-    super.onDestroy()
-    val serviceIntent = Intent(this, RNBackgroundActionsTask::class.java)
-    stopService(serviceIntent)
-  }
 }

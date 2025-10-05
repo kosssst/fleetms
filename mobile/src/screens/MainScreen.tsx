@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView } from 'react-native';
+import { View, StyleSheet, ScrollView, Alert } from 'react-native';
 import { Button, Card, Title, Paragraph, useTheme, MD3Theme } from 'react-native-paper';
 import { useAuth } from '../contexts/AuthContext';
 import { useBluetooth } from '../contexts/BluetoothContext';
@@ -12,12 +12,16 @@ import { useOBD } from '../hooks/useOBD';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import BackgroundService from 'react-native-background-actions';
 import { obdTask } from '../tasks/obdTask';
+import { BatteryOptimization } from '../native/batteryOptimization';
+import BatteryOptimizationBanner from '../components/BatteryOptimizationBanner';
+import { useNavigation } from '@react-navigation/native';
+
 
 import { obdService } from '../services/obd.service';
 
 import { locationService } from '../services/location.service';
-
-import { senderTask } from '../tasks/senderTask';
+import {NativeStackNavigationProp} from "@react-navigation/native-stack";
+import {RootStackParamList} from "../types/navigation.ts";
 
 const obdBackgroundOptions = {
   taskName: 'FleetMS OBD',
@@ -31,18 +35,6 @@ const obdBackgroundOptions = {
   linkingURI: 'fleetms://',
 };
 
-const senderBackgroundOptions = {
-    taskName: 'FleetMS Sender',
-    taskTitle: 'Sender Active',
-    taskDesc: 'Sending trip data.',
-    taskIcon: {
-        name: 'ic_launcher',
-        type: 'mipmap',
-    },
-    color: '#009688',
-    linkingURI: 'fleetms://',
-};
-
 const MainScreen = () => {
   const { user, logout } = useAuth();
   const theme = useTheme();
@@ -52,6 +44,7 @@ const MainScreen = () => {
   const { socketStatus, startTrip, pauseTrip, resumeTrip, endTrip } = useSocket();
   const [tripStatus, setTripStatus] = useState<'stopped' | 'ongoing' | 'paused'>('stopped');
   const [isStartingTrip, setIsStartingTrip] = useState(false);
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   const { obdData } = useOBD();
   const [location, setLocation] = useState<{ latitude: number; longitude: number } | null>(null);
@@ -88,15 +81,28 @@ const MainScreen = () => {
     const tripId = await startTrip();
     if (tripId) {
       try {
+        // Ask to ignore battery optimizations if not already whitelisted
+        const whitelisted = await BatteryOptimization.isWhitelisted();
+        if (!whitelisted) {
+          Alert.alert(
+            'Allow background operation',
+            'To record trips reliably when the screen is off, allow the app to ignore battery optimizations.',
+            [
+              { text: 'Not now' },
+              { text: 'Allow', onPress: () => BatteryOptimization.request() },
+            ],
+          );
+        }
+
         const options = {
           ...obdBackgroundOptions,
           parameters: {
             tripId,
             numberOfCylinders: vehicle?.numberOfCylinders || 4,
+            // you can pass authToken if you want (websocket task already reuses last token)
           },
         };
         await BackgroundService.start(obdTask, options);
-        await BackgroundService.start(senderTask, senderBackgroundOptions);
         setTripStatus('ongoing');
       } catch (e) {
         console.error('Failed to start background service', e);
@@ -119,11 +125,10 @@ const MainScreen = () => {
         ...obdBackgroundOptions,
         parameters: {
           tripId: await AsyncStorage.getItem('activeTripId'),
-          numberOfCylinders: vehicle?.numberOfCylinders || 0,
+          numberOfCylinders: vehicle?.numberOfCylinders || 4,
         },
       };
-      await BackgroundService.start(obdTask, options);
-      await BackgroundService.start(senderTask, senderBackgroundOptions);
+      await BackgroundService.start(obdTask, options); // ONE task
       setTripStatus('ongoing');
     } catch (e) {
       console.error('Failed to start background service', e);
@@ -145,6 +150,7 @@ const MainScreen = () => {
   return (
     <ScrollView style={styles.container}>
       <ConnectionStatus />
+      <BatteryOptimizationBanner onOpenHelp={() => navigation.navigate('BatteryOptimizationHelp')} />
       <Card style={styles.welcomeCard}>
         <Card.Content>
           <Title>Welcome, {user?.firstName}!</Title>
@@ -187,7 +193,7 @@ const MainScreen = () => {
             <Paragraph>Engine Coolant Temp: {obdData.engine_coolant_temp?.toFixed(0)}°C</Paragraph>
             <Paragraph>Intake Air Temp: {obdData.intake_air_temp?.toFixed(0)}°C</Paragraph>
             <Paragraph>Fuel Per Stroke: {obdData.fuel_per_stroke?.toFixed(2)} mg/stroke</Paragraph>
-            <Paragraph>Fuel Consumption Rate: {(obdData.fuel_consumption_rate * (1000 / 3600))?.toFixed(2)} ml/s</Paragraph>
+            <Paragraph>Fuel Consumption Rate: {obdData.fuel_consumption_rate?.toFixed(2)} ml/s</Paragraph>
             {location && (
               <Paragraph>
                 GPS: {location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}

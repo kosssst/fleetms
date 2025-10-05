@@ -38,5 +38,5 @@ export const temperatureDecoder = (payload: Buffer): number => {
 
 export const fuelPerStrokeDecoder = (payload: Buffer): number => {
   const raw = u16Be(payload);
-  return raw * 0.1;
+  return raw * 0.01;
 };

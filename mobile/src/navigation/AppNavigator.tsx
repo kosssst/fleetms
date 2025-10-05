@@ -1,3 +1,4 @@
+// src/navigation/AppNavigator.tsx
 import React from 'react';
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
@@ -7,7 +8,11 @@ import MainScreen from '../screens/MainScreen';
 import { SplashScreen } from '../screens/SplashScreen';
 import { useTheme } from 'react-native-paper';
 
-const Stack = createStackNavigator();
+// ⬇️ add this import
+import BatteryOptimizationHelp from '../screens/BatteryOptimizationHelp';
+import {RootStackParamList} from "../types/navigation.ts";
+
+const Stack = createStackNavigator<RootStackParamList>();
 
 const AppNavigator = () => {
   const { user, loading } = useAuth();
@@ -32,7 +37,13 @@ const AppNavigator = () => {
     <NavigationContainer theme={navigationTheme}>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {user ? (
-          <Stack.Screen name="Main" component={MainScreen} />
+          <>
+            <Stack.Screen name="Main" component={MainScreen} />
+            <Stack.Screen
+              name="BatteryOptimizationHelp"
+              component={BatteryOptimizationHelp}
+            />
+          </>
         ) : (
           <Stack.Screen name="Login" component={LoginScreen} />
         )}
