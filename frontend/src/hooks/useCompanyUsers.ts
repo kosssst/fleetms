@@ -27,5 +27,5 @@ export function useCompanyUsers(companyId: string | null) {
     loadUsers();
   }, [companyId]);
 
-  return { users, loading, error };
+  return { users, loading, error, setUsers };
 }

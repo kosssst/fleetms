@@ -15,3 +15,8 @@ export const getUsersByCompanyId = async (companyId: string): Promise<User[]> =>
     const { data } = await api.get(`/company/${companyId}/users`);
     return data;
 }
+
+export const updateUserRole = async (userId: string, role: string) => {
+  const { data } = await api.put(`/users/${userId}/role`, { role });
+  return data;
+};

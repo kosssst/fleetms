@@ -40,8 +40,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const login = async (values: LoginFormValues, redirectUrl?: string) => {
-    const { token, ...userData } = await loginService(values);
-    Cookies.set('token', token);
+    const userData = await loginService(values);
+    Cookies.set('token', userData.token);
     localStorage.setItem('user', JSON.stringify(userData));
     setUser(userData);
     window.location.href = redirectUrl || '/';

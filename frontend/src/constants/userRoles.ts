@@ -7,3 +7,5 @@ export const USER_ROLE_DISPLAY_NAMES: Record<UserRole, string> = {
   logist: "Logist",
   driver: "Driver",
 };
+
+export type { UserRole };

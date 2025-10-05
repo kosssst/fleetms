@@ -2,7 +2,7 @@
 
 import { IconChevronRight } from '@tabler/icons-react';
 import { Avatar, Group, Text, UnstyledButton } from '@mantine/core';
-import classes from './UserButton.module.scss';
+import classes from '../../styles/UserButton.module.scss';
 import { useAuth } from "@/context/AuthContext";
 
 export function UserButton() {

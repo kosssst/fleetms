@@ -2,17 +2,20 @@
 
 import { Button, Stack, TextInput, Text } from "@mantine/core";
 import { useForm } from "@mantine/form";
-import { createCompany } from "@/services/company.service";
+import { companyService } from "@/services/company.service";
 import { Company } from "@/types/company.types";
+import { User } from "@/types/user.types";
 
 interface CreateCompanyFormProps {
-  onCompanyCreated: (company: Company) => void;
+  onCompanyCreated: (data: { company: Company, user: User }) => void;
 }
 
 export function CreateCompanyForm({ onCompanyCreated }: CreateCompanyFormProps) {
   const form = useForm({
     initialValues: {
       name: '',
+      address: '',
+      phone: '',
     },
     validate: {
       name: (val) => {
@@ -21,14 +24,16 @@ export function CreateCompanyForm({ onCompanyCreated }: CreateCompanyFormProps) 
         if (!/^[a-zA-Z0-9 ]+$/.test(val)) return 'Company name should only include letters, numbers, and spaces';
         return null;
       },
+      address: (val) => (val.length < 5 ? 'Address should include at least 5 characters' : null),
+      phone: (val) => (/^\+?[1-9]\d{1,14}$/.test(val) ? null : 'Invalid phone number'),
     },
   });
 
   async function handleSubmit() {
     try {
-      const newCompany = await createCompany(form.values.name);
-      localStorage.setItem('company_id', newCompany._id);
-      onCompanyCreated(newCompany);
+      const data = await companyService.createCompany(form.values);
+      localStorage.setItem('company_id', data.company._id);
+      onCompanyCreated(data);
     } catch (error) {
       console.error(error);
       alert('Something went wrong');
@@ -46,6 +51,20 @@ export function CreateCompanyForm({ onCompanyCreated }: CreateCompanyFormProps) 
             placeholder="Your company name"
             radius="md"
             {...form.getInputProps('name')}
+          />
+          <TextInput
+            required
+            label="Address"
+            placeholder="Company address"
+            radius="md"
+            {...form.getInputProps('address')}
+          />
+          <TextInput
+            required
+            label="Phone"
+            placeholder="Company phone number"
+            radius="md"
+            {...form.getInputProps('phone')}
           />
           <Button type="submit">Create</Button>
         </Stack>

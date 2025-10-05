@@ -10,8 +10,15 @@ services:
       - REFRESH_TOKEN_SECRET=${REFRESH_TOKEN_SECRET}
       - FRONTEND_URL=${FRONTEND_URL}
       - NODE_ENV=production
+      - RABBITMQ_URL=${RABBITMQ_URL}
+      - WEBSOCKET_N1=${WEBSOCKET_N1}
+      - WEBSOCKET_T1=${WEBSOCKET_T1}
+      - WEBSOCKET_T2=${WEBSOCKET_T2}
     depends_on:
-      - mongo
+      rabbitmq:
+        condition: service_healthy
+      mongo:
+        condition: service_started
     networks:
       - fleetms-network
 
@@ -38,6 +45,38 @@ services:
       - "127.0.0.1:27017:27017"
     volumes:
       - db_data:/data/db
+    networks:
+      - fleetms-network
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: fleetms-rabbitmq
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5672:5672"
+      - "127.0.0.1:15672:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_DEFAULT_USER}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_DEFAULT_PASS}
+    healthcheck:
+      test: [ "CMD", "rabbitmq-diagnostics", "ping" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - fleetms-network
+
+  analysis-service:
+    build: ./analysis-service
+    restart: unless-stopped
+    environment:
+      - MONGODB_URI=mongodb://mongo:27017/fleetms
+      - RABBITMQ_URL=amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      mongo:
+        condition: service_started
     networks:
       - fleetms-network
 
