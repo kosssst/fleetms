@@ -1,10 +1,18 @@
 import amqp from 'amqplib';
-import mongoose from 'mongoose';
-import { TripModel, ITrip } from './models/trip.model';
+import mongoose, {Types} from 'mongoose';
+import { TripModel } from './models/trip.model';
 import { SampleModel, ISample } from './models/sample.model';
+import { ModelModel, IModel } from "./models/model.model";
 
 const MONGO_URI = process.env.MONGODB_URI || 'mongodb://mongo:27017/fleetms';
 const RABBITMQ_URL = process.env.RABBITMQ_URL || 'amqp://user:password@rabbitmq';
+const TRAIN_BATCH_AMOUNT = parseInt(process.env.TRAIN_BATCH_AMOUNT || '20000', 10);
+const VALIDATION_BATCH_AMOUNT = parseInt(process.env.VALIDATION_BATCH_AMOUNT || '5000', 10);
+
+function toObjectId(id: string) {
+  if (Types.ObjectId.isValid(id)) return new Types.ObjectId(id);
+  return null;
+}
 
 const connectDB = async () => {
   try {
@@ -36,21 +44,113 @@ const connectRabbitMQ = async () => {
   }
 };
 
-const analyzeTrip = async (tripId: string) => {
-  console.log(`Analyzing trip ${tripId}`);
-  const samples = await SampleModel.find({ tripId: new mongoose.Types.ObjectId(tripId) }).sort({ timestamp: 1 });
-  const trip = await TripModel.findById(new mongoose.Types.ObjectId(tripId));
+const analyzeTrip = async (tripIdRaw: string) => {
+  console.log(`Analyzing trip ${tripIdRaw}`);
 
-  if (!trip || samples.length === 0) {
-    console.log(`Trip ${tripId} not found or has no samples`);
+  const tripOid = toObjectId(tripIdRaw);
+  if (!tripOid) {
+    console.warn(`Invalid tripId: ${tripIdRaw}`);
+    return;
+  }
+
+  const trip = await TripModel.findById(tripOid).lean();
+  if (!trip) {
+    console.warn(`Trip ${tripIdRaw} not found`);
+    return;
+  }
+
+  let model = await ModelModel
+    .findOne({ vehicleId: trip.vehicleId })
+    .sort({ createdAt: -1 })
+    .lean()
+    .catch(err => {
+      console.warn('Model lookup failed:', err);
+      return null;
+    });
+
+  if (!model) {
+    const createdDoc = await ModelModel.create({
+      vehicleId: trip.vehicleId,
+      version: new Date().toISOString().replace(/[:.]/g, '-'),
+      createdAt: new Date(),
+      status: 'pending',
+      trainTripIds: [],
+      valTripIds: [],
+      trainSamples: 0,
+      valSamples: 0,
+    });
+
+    console.log(
+      `Created new model manifest for vehicle ${trip.vehicleId}:`,
+      (createdDoc._id as Types.ObjectId).toString()
+    );
+
+    const createdPlain = createdDoc.toObject();
+    (createdPlain as any)._id = createdDoc._id;
+
+    type NonNullModel = NonNullable<typeof model>;
+    model = createdPlain as NonNullModel;
+  }
+
+  const samples = await SampleModel
+    .find({ tripId: tripOid })
+    .sort({ timestamp: 1 })
+    .lean();
+
+  if (!samples.length) {
+    console.log(`Trip ${tripIdRaw} has no samples`);
     return;
   }
 
   const summary = calculateSummary(samples);
-  trip.summary = summary;
+
+
+  trip.summary = summary as any;
+  (trip as any).numSamples = samples.length;
   await trip.save();
-  console.log(`Trip ${tripId} analysis complete`);
+
+  const thisIsTrainingTrip = model.trainTripsIds.includes(tripOid);
+  const thisIsValTrip = model.valTripsIds.includes(tripOid);
+
+  if ( thisIsTrainingTrip || thisIsValTrip ) {
+    console.log(`Trip ${tripIdRaw} already assigned to model ${model._id}, skipping assignment`);
+    console.log(`Trip ${tripIdRaw} analysis complete`);
+    return;
+  }
+
+  if (model.trainSamples < TRAIN_BATCH_AMOUNT) {
+    model.trainTripsIds.push(tripOid);
+    model.trainSamples += samples.length;
+
+    console.log(`Assigned trip ${tripIdRaw} to training set of model ${model._id}`);
+  } else if (model.valSamples < VALIDATION_BATCH_AMOUNT) {
+    model.valTripsIds.push(tripOid);
+    model.valSamples += samples.length;
+
+    console.log(`Assigned trip ${tripIdRaw} to validation set of model ${model._id}`);
+  } else {
+    const prediction = predictSummary(model, samples);
+
+    trip.predictionSummary = prediction as any;
+    await trip.save();
+
+    console.log(`Model ${model._id} already has enough training and validation data, not assigning trip ${tripIdRaw}`);
+  }
+
+  console.log(`Trip ${tripIdRaw} analysis complete`);
 };
+
+const predictSummary = (model: IModel, samples: ISample[]) => {
+  const prediction = {
+    fuelUsedL: 0,
+    avgFuelRateLph: 0,
+    MAE: 0,
+    RMSE: 0,
+    R2: 0,
+  };
+
+  return prediction;
+}
 
 const calculateSummary = (samples: ISample[]) => {
   const summary = {
