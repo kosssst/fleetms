@@ -52,7 +52,7 @@ const TripDetailsPage = () => {
       setError(null);
       try {
         await deleteTrip(id as string);
-        router.push('/trips');
+        router.push('/company');
       } catch {
         setError('Failed to delete trip');
       } finally {
