@@ -19,13 +19,20 @@ export const TripsTable = () => {
     fetchTrips();
   }, []);
 
-  const rows = trips.map((trip) => (
+  const sortedTrips = [...trips].sort((a, b) => {
+    const ta = new Date(a.endTime ?? a.startTime ?? 0).getTime();
+    const tb = new Date(b.endTime ?? b.startTime ?? 0).getTime();
+    return tb - ta; // desc: newest first
+  });
+
+  const rows = sortedTrips.map((trip) => (
     <Table.Tr key={trip.id}>
       <Table.Td>{trip.status}</Table.Td>
       <Table.Td>{new Date(trip.startTime).toLocaleString()}</Table.Td>
       <Table.Td>{trip.endTime ? new Date(trip.endTime).toLocaleString() : 'N/A'}</Table.Td>
       <Table.Td>{`${trip.driverId.firstName} ${trip.driverId.lastName}`}</Table.Td>
       <Table.Td>{trip.vehicleId.number}</Table.Td>
+      <Table.Td>{trip.role ?? ""}</Table.Td>
       <Table.Td>
         {trip.status === 'completed' && (
           <HoverCard width={280} shadow="md">
@@ -54,6 +61,7 @@ export const TripsTable = () => {
           <Table.Th>Ended At</Table.Th>
           <Table.Th>Driver</Table.Th>
           <Table.Th>Vehicle Number</Table.Th>
+          <Table.Th>Role</Table.Th>
           <Table.Th>Actions</Table.Th>
         </Table.Tr>
       </Table.Thead>

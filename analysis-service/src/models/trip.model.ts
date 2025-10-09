@@ -7,11 +7,6 @@ export interface ITrip extends Document {
   status: 'ongoing' | 'paused' | 'completed';
   startTime: Date;
   endTime?: Date;
-  ingestCounters?: {
-    samplesReceived: number;
-    duplicatesDeduped: number;
-    acksSent: number;
-  };
   gpsBbox?: {
     minLat: number;
     minLon: number;
@@ -32,6 +27,15 @@ export interface ITrip extends Document {
       longitude: number;
     }[];
   };
+  predictionSummary?: {
+    fuelUsedL: number;
+    avgFuelRateLph: number;
+    MAE: number;
+    RMSE: number;
+    R2: number;
+  };
+  numSamples?: number;
+  role?: string;
 }
 
 const TripSchema = new Schema<ITrip>({
@@ -41,11 +45,6 @@ const TripSchema = new Schema<ITrip>({
   status: { type: String, enum: ['ongoing', 'paused', 'completed'], required: true },
   startTime: { type: Date, required: true },
   endTime: { type: Date },
-  ingestCounters: {
-    samplesReceived: { type: Number },
-    duplicatesDeduped: { type: Number },
-    acksSent: { type: Number },
-  },
   gpsBbox: {
     minLat: { type: Number },
     minLon: { type: Number },
@@ -66,6 +65,15 @@ const TripSchema = new Schema<ITrip>({
       longitude: { type: Number },
     }],
   },
+  predictionSummary: {
+    fuelUsedL: { type: Number },
+    avgFuelRateLph: { type: Number },
+    MAE: { type: Number },
+    RMSE: { type: Number },
+    R2: { type: Number },
+  },
+  numSamples: { type: Number },
+  role: { type: String },
 }, {
   timestamps: true,
   toJSON: {

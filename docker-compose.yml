@@ -19,8 +19,10 @@ services:
       - WEBSOCKET_T1=${WEBSOCKET_T1}
       - WEBSOCKET_T2=${WEBSOCKET_T2}
     depends_on:
-      - mongo
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
+      mongo:
+        condition: service_started
     networks:
       - fleetms-network
 
@@ -83,13 +85,70 @@ services:
       - MONGODB_URI=mongodb://mongo:27017/fleetms
       - RABBITMQ_URL=${RABBITMQ_URL}
     depends_on:
-      - rabbitmq
-      - mongo
+      rabbitmq:
+        condition: service_healthy
+      mongo:
+        condition: service_started
+    networks:
+      - fleetms-network
+
+  model-trainer:
+    build: ./model-trainer
+    restart: unless-stopped
+    environment:
+      - MONGODB_URI=mongodb://mongo:27017/fleetms
+      - MONGO_DB=fleetms
+      - RABBITMQ_URL=${RABBITMQ_URL}
+      - QUEUE_IN=model-train
+      - MODELS_DIR=/models
+      - GAP_S=6
+      - ALPHA=0.6
+      - MIN_SPEED_KMH=0.0
+      - GPS_SAME_EPS_M=2.0
+      - GPS_MIN_SPAN_S=1.5
+      - GPS_MAX_SPAN_S=15.0
+      - MISMATCH_KMH=15.0
+      - A_ACCEL_MAX_MS2=6.0
+      - A_DECEL_MAX_MS2=6.0
+      - PHYS_MARGIN_KMH=5.0
+      - VMAX_KMH=160
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      mongo:
+        condition: service_started
+    volumes:
+      - models_data:/models
+    networks:
+      - fleetms-network
+
+
+  predictor:
+    build: ./predictor-service
+    restart: unless-stopped
+    environment:
+      MONGO_URI: "mongodb://mongo:27017"
+      MONGO_DB: "fleetms"
+      AMQP_URL: ${RABBITMQ_URL}
+      AMQP_QUEUE: "predict.trip"
+      MODELS_DIR: "/models"
+      LOG_LEVEL: "INFO"
+      DEBUG_FEATURES: "1"
+      DEBUG_SAVE: "1"
+      DEBUG_DIR: "/debug"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      mongo:
+        condition: service_started
+    volumes:
+      - models_data:/models:ro
     networks:
       - fleetms-network
 
 volumes:
   db_data:
+  models_data:
 
 networks:
   fleetms-network:
