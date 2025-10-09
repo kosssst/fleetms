@@ -555,7 +555,7 @@ def handle_train_job(payload: dict):
     metrics = train_and_evaluate(df_feat, feature_cols, out_dir)
 
     # Оновити маніфест
-    update_manifest_status(manifest, "trained", {
+    update_manifest_status(manifest, "completed", {
         "artifacts": {
             "path": out_dir,
             "model_file": "model.joblib",

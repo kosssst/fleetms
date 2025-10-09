@@ -122,6 +122,30 @@ services:
     networks:
       - fleetms-network
 
+
+  predictor:
+    build: ./predictor-service
+    restart: unless-stopped
+    environment:
+      MONGO_URI: "mongodb://mongo:27017"
+      MONGO_DB: "fleetms"
+      AMQP_URL: ${RABBITMQ_URL}
+      AMQP_QUEUE: "predict.trip"
+      MODELS_DIR: "/models"
+      LOG_LEVEL: "INFO"
+      DEBUG_FEATURES: "1"
+      DEBUG_SAVE: "1"
+      DEBUG_DIR: "/debug"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      mongo:
+        condition: service_started
+    volumes:
+      - models_data:/models:ro
+    networks:
+      - fleetms-network
+
 volumes:
   db_data:
   models_data:

@@ -12,10 +12,12 @@ const VALIDATION_BATCH_AMOUNT = parseInt(process.env.VALIDATION_BATCH_AMOUNT || 
 
 const QUEUE_IN  = 'trip-analysis';
 const QUEUE_OUT = 'model-train';
+const QUEUE_PREDICTOR = 'predict.trip';
 
 let mqConn;
 let consumeCh: Channel;
 let publishCh: ConfirmChannel;
+let predictCh: ConfirmChannel;
 
 function toObjectId(id: string) {
   if (Types.ObjectId.isValid(id)) return new Types.ObjectId(id);
@@ -39,8 +41,11 @@ const connectRabbitMQ = async () => {
   await consumeCh.assertQueue(QUEUE_IN, { durable: true });
   await consumeCh.prefetch(1);
 
-  publishCh = await mqConn.createConfirmChannel();   // confirm channel = надійні публікації
+  publishCh = await mqConn.createConfirmChannel();
   await publishCh.assertQueue(QUEUE_OUT, { durable: true });
+
+  predictCh = await mqConn.createConfirmChannel();
+  await predictCh.assertQueue(QUEUE_PREDICTOR, { durable: true });
 
   console.log('Connected to RabbitMQ');
 
@@ -130,6 +135,8 @@ const analyzeTrip = async (tripIdRaw: string) => {
     return;
   }
 
+  let trainingTriggered = false;
+
   if (model.trainSamples < TRAIN_BATCH_AMOUNT) {
     model.trainTripsIds.push(tripOid);
     model.trainSamples += samples.length;
@@ -138,40 +145,24 @@ const analyzeTrip = async (tripIdRaw: string) => {
   } else if (model.valSamples < VALIDATION_BATCH_AMOUNT) {
     model.valTripsIds.push(tripOid);
     model.valSamples += samples.length;
-
-    await model.save();
-
-    if (model.valSamples >= VALIDATION_BATCH_AMOUNT) {
-      publishCh.sendToQueue(QUEUE_OUT, Buffer.from(JSON.stringify({ vehicleId: trip.vehicleId.toString(), version: model.version, modelId: model._id.toString() })), { persistent: true });
-      console.log(`Published model ${model._id} for training`);
-    }
+    if (model.valSamples >= VALIDATION_BATCH_AMOUNT) trainingTriggered = true;
 
     console.log(`Assigned trip ${tripIdRaw} to validation set of model ${model._id}`);
   } else {
-    const prediction = predictSummary(model, samples);
+    predictCh.sendToQueue(QUEUE_PREDICTOR, Buffer.from(JSON.stringify({ tripId: tripIdRaw, vehicleId: trip.vehicleId.toString(), version: model.version })), { persistent: true });
 
-    trip.predictionSummary = prediction as any;
-    await trip.save();
-
-    console.log(`Model ${model._id} already has enough training and validation data, not assigning trip ${tripIdRaw}`);
+    console.log(`Model ${model._id} already has enough training and validation data, not assigning trip ${tripIdRaw}, sent for prediction`);
   }
 
   await model.save();
 
+  if (trainingTriggered) {
+    publishCh.sendToQueue(QUEUE_OUT, Buffer.from(JSON.stringify({ vehicleId: trip.vehicleId.toString(), version: model.version, modelId: model._id.toString() })), { persistent: true });
+    console.log(`Published model ${model._id} for training`);
+  }
+
   console.log(`Trip ${tripIdRaw} analysis complete`);
 };
-
-const predictSummary = (model: IModel, samples: ISample[]) => {
-  const prediction = {
-    fuelUsedL: 0,
-    avgFuelRateLph: 0,
-    MAE: 0,
-    RMSE: 0,
-    R2: 0,
-  };
-
-  return prediction;
-}
 
 const calculateSummary = (samples: ISample[]) => {
   const summary = {
