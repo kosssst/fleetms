@@ -130,6 +130,20 @@ const TripDetailsPage = () => {
               <Text>Summary not available.</Text>
             )}
           </Paper>
+          <Paper withBorder radius="md" p="md" mt="md">
+            <Title order={3}>Prediction Summary</Title>
+            {trip.predictionSummary ? (
+              <>
+                <Text>Fuel Used: {trip.predictionSummary.fuelUsedL}L</Text>
+                <Text>Average Fuel Rate: {trip.predictionSummary.avgFuelRateLph}L/h</Text>
+                <Text>MAE: {trip.predictionSummary.MAE}</Text>
+                <Text>RMSE: {trip.predictionSummary.RMSE}</Text>
+                <Text>R²: {trip.predictionSummary.R2}</Text>
+              </>
+            ) : (
+              <Text>Prediction summary not available.</Text>
+            )}
+          </Paper>
         </Grid.Col>
       </Grid>
     </div>

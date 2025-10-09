@@ -23,4 +23,13 @@ export interface Trip {
       longitude: number;
     }[];
   };
+  predictionSummary?: {
+    fuelUsedL: number;
+    avgFuelRateLph: number;
+    MAE: number;
+    RMSE: number;
+    R2: number;
+  };
+  numSamples?: number;
+  role?: string;
 }

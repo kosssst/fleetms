@@ -136,29 +136,38 @@ const analyzeTrip = async (tripIdRaw: string) => {
   }
 
   let trainingTriggered = false;
+  let predictionTriggered = false;
 
   if (model.trainSamples < TRAIN_BATCH_AMOUNT) {
     model.trainTripsIds.push(tripOid);
     model.trainSamples += samples.length;
+    trip.role = 'train';
 
     console.log(`Assigned trip ${tripIdRaw} to training set of model ${model._id}`);
   } else if (model.valSamples < VALIDATION_BATCH_AMOUNT) {
     model.valTripsIds.push(tripOid);
     model.valSamples += samples.length;
+    trip.role = 'validation';
     if (model.valSamples >= VALIDATION_BATCH_AMOUNT) trainingTriggered = true;
 
     console.log(`Assigned trip ${tripIdRaw} to validation set of model ${model._id}`);
   } else {
-    predictCh.sendToQueue(QUEUE_PREDICTOR, Buffer.from(JSON.stringify({ tripId: tripIdRaw, vehicleId: trip.vehicleId.toString(), version: model.version })), { persistent: true });
-
-    console.log(`Model ${model._id} already has enough training and validation data, not assigning trip ${tripIdRaw}, sent for prediction`);
+    trip.role = 'prediction';
+    predictionTriggered = true;
+    console.log(`Model ${model._id} already has enough training and validation data, not assigning trip ${tripIdRaw}`);
   }
 
   await model.save();
+  await trip.save();
 
   if (trainingTriggered) {
     publishCh.sendToQueue(QUEUE_OUT, Buffer.from(JSON.stringify({ vehicleId: trip.vehicleId.toString(), version: model.version, modelId: model._id.toString() })), { persistent: true });
     console.log(`Published model ${model._id} for training`);
+  }
+
+  if (predictionTriggered) {
+    predictCh.sendToQueue(QUEUE_PREDICTOR, Buffer.from(JSON.stringify({ tripId: tripIdRaw, vehicleId: trip.vehicleId.toString(), version: model.version })), { persistent: true });
+    console.log(`Published trip ${tripIdRaw} for prediction`);
   }
 
   console.log(`Trip ${tripIdRaw} analysis complete`);
