@@ -1,6 +1,7 @@
 import { Schema, model, Document, Types } from 'mongoose';
 
 export interface IModel extends Document {
+  _id: Types.ObjectId;
   vehicleId: Types.ObjectId;
   version: string;
   trainTripsIds: Types.ObjectId[];

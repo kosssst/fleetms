@@ -1,4 +1,5 @@
-import amqp from 'amqplib';
+import amqplib from 'amqplib';
+import type { Channel, ConfirmChannel } from 'amqplib';
 import mongoose, {Types} from 'mongoose';
 import { TripModel } from './models/trip.model';
 import { SampleModel, ISample } from './models/sample.model';
@@ -8,6 +9,13 @@ const MONGO_URI = process.env.MONGODB_URI || 'mongodb://mongo:27017/fleetms';
 const RABBITMQ_URL = process.env.RABBITMQ_URL || 'amqp://user:password@rabbitmq';
 const TRAIN_BATCH_AMOUNT = parseInt(process.env.TRAIN_BATCH_AMOUNT || '20000', 10);
 const VALIDATION_BATCH_AMOUNT = parseInt(process.env.VALIDATION_BATCH_AMOUNT || '5000', 10);
+
+const QUEUE_IN  = 'trip-analysis';
+const QUEUE_OUT = 'model-train';
+
+let mqConn;
+let consumeCh: Channel;
+let publishCh: ConfirmChannel;
 
 function toObjectId(id: string) {
   if (Types.ObjectId.isValid(id)) return new Types.ObjectId(id);
@@ -25,23 +33,28 @@ const connectDB = async () => {
 };
 
 const connectRabbitMQ = async () => {
-  try {
-    const connection = await amqp.connect(RABBITMQ_URL);
-    const channel = await connection.createChannel();
-    await channel.assertQueue('trip-analysis', { durable: true });
-    console.log('Connected to RabbitMQ');
+  mqConn = await amqplib.connect(RABBITMQ_URL);
 
-    channel.consume('trip-analysis', async (msg) => {
-      if (msg) {
-        const { tripId } = JSON.parse(msg.content.toString());
-        await analyzeTrip(tripId);
-        channel.ack(msg);
-      }
-    });
-  } catch (error) {
-    console.error('Failed to connect to RabbitMQ', error);
-    setTimeout(connectRabbitMQ, 5000);
-  }
+  consumeCh = await mqConn.createChannel();
+  await consumeCh.assertQueue(QUEUE_IN, { durable: true });
+  await consumeCh.prefetch(1);
+
+  publishCh = await mqConn.createConfirmChannel();   // confirm channel = надійні публікації
+  await publishCh.assertQueue(QUEUE_OUT, { durable: true });
+
+  console.log('Connected to RabbitMQ');
+
+  consumeCh.consume(QUEUE_IN, async (msg) => {
+    if (!msg) return;
+    try {
+      const { tripId } = JSON.parse(msg.content.toString());
+      await analyzeTrip(tripId);
+    } catch (err) {
+      console.error('Failed to analyze message:', err);
+    } finally {
+      consumeCh.ack(msg);
+    }
+  });
 };
 
 const analyzeTrip = async (tripIdRaw: string) => {
@@ -53,7 +66,7 @@ const analyzeTrip = async (tripIdRaw: string) => {
     return;
   }
 
-  const trip = await TripModel.findById(tripOid).lean();
+  const trip = await TripModel.findById(tripOid);
   if (!trip) {
     console.warn(`Trip ${tripIdRaw} not found`);
     return;
@@ -62,7 +75,6 @@ const analyzeTrip = async (tripIdRaw: string) => {
   let model = await ModelModel
     .findOne({ vehicleId: trip.vehicleId })
     .sort({ createdAt: -1 })
-    .lean()
     .catch(err => {
       console.warn('Model lookup failed:', err);
       return null;
@@ -127,6 +139,13 @@ const analyzeTrip = async (tripIdRaw: string) => {
     model.valTripsIds.push(tripOid);
     model.valSamples += samples.length;
 
+    await model.save();
+
+    if (model.valSamples >= VALIDATION_BATCH_AMOUNT) {
+      publishCh.sendToQueue(QUEUE_OUT, Buffer.from(JSON.stringify({ vehicleId: trip.vehicleId.toString(), version: model.version, modelId: model._id.toString() })), { persistent: true });
+      console.log(`Published model ${model._id} for training`);
+    }
+
     console.log(`Assigned trip ${tripIdRaw} to validation set of model ${model._id}`);
   } else {
     const prediction = predictSummary(model, samples);
@@ -136,6 +155,8 @@ const analyzeTrip = async (tripIdRaw: string) => {
 
     console.log(`Model ${model._id} already has enough training and validation data, not assigning trip ${tripIdRaw}`);
   }
+
+  await model.save();
 
   console.log(`Trip ${tripIdRaw} analysis complete`);
 };
