@@ -19,7 +19,13 @@ export const TripsTable = () => {
     fetchTrips();
   }, []);
 
-  const rows = trips.map((trip) => (
+  const sortedTrips = [...trips].sort((a, b) => {
+    const ta = new Date(a.endTime ?? a.startTime ?? 0).getTime();
+    const tb = new Date(b.endTime ?? b.startTime ?? 0).getTime();
+    return tb - ta; // desc: newest first
+  });
+
+  const rows = sortedTrips.map((trip) => (
     <Table.Tr key={trip.id}>
       <Table.Td>{trip.status}</Table.Td>
       <Table.Td>{new Date(trip.startTime).toLocaleString()}</Table.Td>
