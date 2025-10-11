@@ -2,6 +2,7 @@
 
 import { ColorSchemeScript, MantineProvider } from '@mantine/core';
 import '@mantine/core/styles.css';
+import '@mantine/dates/styles.css';
 import './globals.css';
 import { PROJECT_NAME } from "@/constants/appConfig";
 import { AuthProvider } from '@/context/AuthContext';
