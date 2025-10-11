@@ -10,6 +10,21 @@ import { navLinks } from '@/constants/navLinks';
 import { usePathname } from 'next/navigation';
 import classes from '@/styles/Header.module.scss'
 
+function normalize(path: string) {
+  // прибираємо кінцеві слеші; порожній → '/'
+  const p = path.replace(/\/+$/, '');
+  return p.length ? p : '/';
+}
+
+function isActivePath(pathname: string, href: string) {
+  const p = normalize(pathname || '/');
+  const h = normalize(href);
+
+  if (h === '/') return p === '/';            // головна активна лише на '/'
+  if (p === h) return true;                   // точний збіг
+  return p.startsWith(h + '/');               // підшляхи типу /company/…
+}
+
 export function Header() {
   const { user, loading } = useAuth();
   const pathname = usePathname();
@@ -17,15 +32,15 @@ export function Header() {
   const items = navLinks
     .filter(link => !link.authRequired || (link.authRequired && user))
     .map((link) => (
-    <Link
-      key={link.label}
-      href={link.href}
-      className="nav-link" // A generic class for styling links
-      data-active={pathname === link.href || undefined}
-    >
-      {link.label}
-    </Link>
-  ));
+      <Link
+        key={link.label}
+        href={link.href}
+        className="nav-link"
+        data-active={isActivePath(pathname, link.href) || undefined}
+      >
+        {link.label}
+      </Link>
+    ));
 
   return (
     <header className={classes.header}>
@@ -40,6 +55,7 @@ export function Header() {
         <Group gap={5} visibleFrom="xs" className={classes.nav}>
           {items}
         </Group>
+
         <Group>
           <ThemeSwitcher />
           {!loading &&

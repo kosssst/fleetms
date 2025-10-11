@@ -7,6 +7,6 @@ const router = Router();
 router.post('/create', protect, createCompany);
 router.post('/join', protect, joinCompany);
 router.get('/', protect, getCompany);
-router.get('/:companyId/users', protect, getCompanyUsers);
+router.get('/users', protect, getCompanyUsers);
 
 export default router;

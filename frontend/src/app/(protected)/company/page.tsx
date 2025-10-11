@@ -1,12 +1,10 @@
 "use client";
 
-import {CompanyPageBox} from "@/components/containers/CompanyPageBox";
+import {CompanyInfoModule} from "@/components/containers/CompanyInfo.module";
 
 const CompanyPage = () => {
   return (
-    <div className="main-context">
-      <CompanyPageBox />
-    </div>
+    <CompanyInfoModule/>
   )
 }
 

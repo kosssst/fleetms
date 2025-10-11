@@ -37,7 +37,7 @@ export const TripsTable = () => {
         {trip.status === 'completed' && (
           <HoverCard width={280} shadow="md">
             <HoverCard.Target>
-              <Button onClick={() => router.push(`/trips/${trip.id}`)}>
+              <Button onClick={() => router.push(`/company/trips/${trip.id}`)}>
                 View Details
               </Button>
             </HoverCard.Target>
