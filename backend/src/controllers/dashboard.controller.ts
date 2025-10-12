@@ -1,12 +1,22 @@
 import {Request} from "express";
 import {User} from "../types/user.types";
 import {TripModel} from "../models/trip.model";
-import dayjs from "dayjs";
+import dayjs from "../override/dayjs";
 import {Types} from "mongoose";
 import {VehicleModel} from "../models/vehicle.model";
 
 interface RequestWithUser extends Request {
   user?: User;
+}
+
+interface TopSummary {
+  distanceKm: number;
+  fuelUsedL: number;
+}
+
+interface TopFuelEfficiency {
+  vehicleNumber: string;
+  fuelPer100Km: number;
 }
 
 export const getSummary = async (req: RequestWithUser, res: any) => {
@@ -30,6 +40,14 @@ export const getSummary = async (req: RequestWithUser, res: any) => {
     return res.status(400).json({ message: "Invalid date format, expected DD-MM-YYYY" });
   }
 
+  const dayKeys: string[] = [];
+  for (let d = fromDate.clone(); d.isBefore(toDate) || d.isSame(toDate, "day"); d = d.add(1, "day")) {
+    dayKeys.push(d.format("DD-MM-YYYY"));
+  }
+
+  const dailyFuel = new Map<string, number>();
+  for (const key of dayKeys) dailyFuel.set(key, 0);
+
   const query: any = {
     status: "completed",
     endTime: { $gte: fromDate.toDate(), $lte: toDate.toDate() },
@@ -38,10 +56,6 @@ export const getSummary = async (req: RequestWithUser, res: any) => {
 
   const trips = await TripModel.find(query);
   const vehicles = await VehicleModel.find();
-
-  const idToVehicleNumber = new Map<string, string>(
-    vehicles.map(v => [String(v._id), v.number])
-  );
 
   let summary: any = {
     distanceKm: {
@@ -56,12 +70,12 @@ export const getSummary = async (req: RequestWithUser, res: any) => {
     fuelUsedInMotionL: 0,
     idleDurationSec: 0,
     motionDurationSec: 0,
+    topFuelPer100Km: [] as Array<{ vehicleNumber: string; fuelPer100Km: number }>,
+    fuelUsedPerDay: [] as Array<{ date: string; fuelUsedL: number }>,
   }
 
-  const byVehicle = new Map<string, { distanceKm: number; fuelUsedL: number }>();
-
   for (const trip of trips) {
-    if (!trip.summary) continue;
+    if (!trip.summary || !trip.endTime) continue;
 
     const d = trip.summary.distanceKm ?? 0;
     const f = trip.summary.fuelUsedL ?? 0;
@@ -77,27 +91,44 @@ export const getSummary = async (req: RequestWithUser, res: any) => {
     summary.idleDurationSec   += idl;
     summary.motionDurationSec += mot;
 
-    const key = String(trip.vehicleId ?? "");
-    if (!key) continue;
+    const key = dayjs(trip.endTime).format("DD-MM-YYYY");
+    if (!dailyFuel.has(key)) continue; // поза межами діапазону (на випадок країв)
 
-    const cur = byVehicle.get(key) ?? { distanceKm: 0, fuelUsedL: 0 };
-    cur.distanceKm += d;
-    cur.fuelUsedL  += f;
-    byVehicle.set(key, cur);
+    const fd =
+      (trip.summary.fuelUsedL ?? undefined) != null
+        ? (trip.summary.fuelUsedL as number)
+        : (trip.summary.fuelUsedInIdleL ?? 0) + (trip.summary.fuelUsedInMotionL ?? 0);
+
+    dailyFuel.set(key, (dailyFuel.get(key) ?? 0) + (Number.isFinite(fd) ? fd : 0));
   }
 
-  const distanceArr = Array.from(byVehicle.entries()).map(([vehicleId, agg]) => ({
-    vehicleNumber: idToVehicleNumber.get(vehicleId) ?? "(unknown)",
-    distanceKm: agg.distanceKm,
-  }));
+  for (const vehicle of vehicles) {
+    if (!vehicle.totalDistanceKm || !vehicle.totalFuelUsedL) continue;
 
-  const fuelArr = Array.from(byVehicle.entries()).map(([vehicleId, agg]) => ({
-    vehicleNumber: idToVehicleNumber.get(vehicleId) ?? "(unknown)",
-    fuelUsedL: agg.fuelUsedL,
-  }));
+    summary.distanceKm.top.push({
+      vehicleNumber: vehicle.number,
+      distanceKm: vehicle.totalDistanceKm,
+    });
 
-  summary.distanceKm.top = distanceArr.sort((a, b) => b.distanceKm - a.distanceKm).slice(0, 3);
-  summary.fuelUsedL.top  = fuelArr.sort((a, b) => b.fuelUsedL  - a.fuelUsedL ).slice(0, 3);
+    summary.fuelUsedL.top.push({
+      vehicleNumber: vehicle.number,
+      fuelUsedL: vehicle.totalFuelUsedL,
+    });
+
+    summary.topFuelPer100Km.push({
+      vehicleNumber: vehicle.number,
+      fuelPer100Km: (vehicle.totalFuelUsedL / vehicle.totalDistanceKm) * 100,
+    })
+  }
+
+  summary.distanceKm.top = summary.distanceKm.top.sort((a: TopSummary, b: TopSummary) => b.distanceKm - a.distanceKm).slice(0, 3);
+  summary.fuelUsedL.top = summary.fuelUsedL.top.sort((a: TopSummary, b: TopSummary) => b.fuelUsedL - a.fuelUsedL).slice(0, 3);
+  summary.topFuelPer100Km = summary.topFuelPer100Km.sort((a: TopFuelEfficiency, b: TopFuelEfficiency) => b.fuelPer100Km - a.fuelPer100Km).slice(0, 3);
+
+  summary.fuelUsedPerDay = dayKeys.map((date) => ({
+    date,
+    fuelUsedL: Math.round(((dailyFuel.get(date) ?? 0) + Number.EPSILON) * 100) / 100,
+  }));
 
   res.status(200).json(summary);
 }

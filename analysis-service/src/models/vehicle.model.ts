@@ -1,4 +1,3 @@
-
 import { Schema, model, Document, Types } from 'mongoose';
 
 export interface IVehicle extends Document {
@@ -27,9 +26,8 @@ const VehicleSchema = new Schema<IVehicle>({
   timestamps: true,
   toJSON: {
     transform(doc, ret) {
-      const { _id, __v, ...obj } = ret;
-      obj.id = _id;
-      return obj;
+      const { _id, __v, ...rest } = ret;
+      return { id: _id, ...rest };
     }
   }
 });

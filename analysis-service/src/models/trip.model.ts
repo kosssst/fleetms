@@ -1,6 +1,7 @@
 import { Schema, model, Document, Types } from 'mongoose';
 
 export interface ITrip extends Document {
+  _id: Types.ObjectId;
   driverId: Types.ObjectId;
   vehicleId: Types.ObjectId;
   companyId: Types.ObjectId;
@@ -43,6 +44,7 @@ export interface ITrip extends Document {
 }
 
 const TripSchema = new Schema<ITrip>({
+  _id: { type: Schema.Types.ObjectId, ref: 'Trip' },
   driverId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
   vehicleId: { type: Schema.Types.ObjectId, ref: 'Vehicle', required: true },
   companyId: { type: Schema.Types.ObjectId, ref: 'Company', required: true },

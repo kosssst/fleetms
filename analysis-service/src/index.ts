@@ -4,6 +4,7 @@ import mongoose, {Types} from 'mongoose';
 import { TripModel } from './models/trip.model';
 import { SampleModel, ISample } from './models/sample.model';
 import { ModelModel, IModel } from "./models/model.model";
+import {VehicleModel} from "./models/vehicle.model";
 
 const MONGO_URI = process.env.MONGODB_URI || 'mongodb://mongo:27017/fleetms';
 const RABBITMQ_URL = process.env.RABBITMQ_URL || 'amqp://user:password@rabbitmq';
@@ -77,6 +78,12 @@ const analyzeTrip = async (tripIdRaw: string) => {
     return;
   }
 
+  let vehicle = await VehicleModel.findById(trip.vehicleId);
+  if (!vehicle) {
+    console.warn(`Vehicle ${trip.vehicleId} not found for trip ${tripIdRaw}`);
+    return;
+  }
+
   let model = await ModelModel
     .findOne({ vehicleId: trip.vehicleId })
     .sort({ createdAt: -1 })
@@ -121,10 +128,20 @@ const analyzeTrip = async (tripIdRaw: string) => {
 
   const summary = calculateSummary(samples);
 
-
   trip.summary = summary as any;
   (trip as any).numSamples = samples.length;
   await trip.save();
+
+  if (!vehicle.tripsUsedInTotalDistanceAndFuel) vehicle.tripsUsedInTotalDistanceAndFuel = [];
+  if (vehicle.tripsUsedInTotalDistanceAndFuel.includes(trip._id)){
+    console.log(`Trip ${tripIdRaw} already counted in vehicle ${vehicle._id} totals`);
+  } else {
+    vehicle.totalDistanceKm += summary.distanceKm;
+    vehicle.totalFuelUsedL += summary.fuelUsedL;
+    vehicle.tripsUsedInTotalDistanceAndFuel.push(trip._id);
+    await vehicle.save();
+    console.log(`Updated vehicle ${vehicle._id} totals with trip ${tripIdRaw}`);
+  }
 
   const thisIsTrainingTrip = model.trainTripsIds.includes(tripOid);
   const thisIsValTrip = model.valTripsIds.includes(tripOid);

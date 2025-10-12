@@ -10,14 +10,15 @@ import { TotalFuelTile } from "@/components/kpi/TotalFuelTile";
 import {getSummary} from "@/services/dashboard.service";
 import {FuelUsedSplitTile} from "@/components/kpi/FuelUsedSplitTile";
 import {TimeSplitTile} from "@/components/kpi/TimeSplitTile";
+import {FuelEfficiency} from "@/components/kpi/FuelEfficiencyTile";
+import {FuelPerDayTile} from "@/components/kpi/FuelPerDayTile";
 
 
 export default function DashboardPage() {
-  // початково — останні 7 днів
   const [range, setRange] = useState<DatesRangeValue>(() => {
     const to = new Date();
     const from = dayjs(to).subtract(6, 'day').toDate();
-    return [from, to]; // [Date|null, Date|null]
+    return [from, to];
   });
 
   const [loading, setLoading] = useState(false);
@@ -44,7 +45,7 @@ export default function DashboardPage() {
       })
       .catch((err) => {
         setError(err?.message ?? 'Failed to load');
-        setSummary({ distanceKm: { total: 0.0, top: [] }, fuelUsedL: { total: 0.0, top: [] }, fuelUsedInMotionL: 0.0, fuelUsedInIdleL: 0.0, idleDurationSec: 0.0, motionDurationSec: 0.0 });
+        setSummary({ distanceKm: { total: 0.0, top: [] }, fuelUsedL: { total: 0.0, top: [] }, fuelUsedInMotionL: 0.0, fuelUsedInIdleL: 0.0, idleDurationSec: 0.0, motionDurationSec: 0.0, topFuelPer100Km: [], fuelUsedPerDay: [] });
       })
       .finally(() => {
         setLoading(false);
@@ -78,6 +79,8 @@ export default function DashboardPage() {
           <TotalFuelTile liters={summary?.fuelUsedL.total ?? null} top={summary?.fuelUsedL.top ?? null} />
           <FuelUsedSplitTile fuelUsedTotalL={summary?.fuelUsedL.total ?? null} fuelUsedInIdleL={summary?.fuelUsedInIdleL ?? 0} fuelUsedInMotionL={summary?.fuelUsedInMotionL ?? 0} />
           <TimeSplitTile idleDurationSec={summary?.idleDurationSec ?? 0} motionDurationSec={summary?.motionDurationSec ?? 0} />
+          <FuelPerDayTile data={summary?.fuelUsedPerDay ?? null} />
+          <FuelEfficiency top={summary?.topFuelPer100Km ?? null} />
         </SimpleGrid>
       )}
 
