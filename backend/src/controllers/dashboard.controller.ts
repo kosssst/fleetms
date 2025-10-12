@@ -3,6 +3,7 @@ import {User} from "../types/user.types";
 import {TripModel} from "../models/trip.model";
 import dayjs from "dayjs";
 import {Types} from "mongoose";
+import {VehicleModel} from "../models/vehicle.model";
 
 interface RequestWithUser extends Request {
   user?: User;
@@ -29,24 +30,62 @@ export const getSummary = async (req: RequestWithUser, res: any) => {
     return res.status(400).json({ message: "Invalid date format, expected DD-MM-YYYY" });
   }
 
-  const match: any = {
+  const query: any = {
     status: "completed",
     endTime: { $gte: fromDate.toDate(), $lte: toDate.toDate() },
     companyId: new Types.ObjectId(user.companyId),
   };
 
-  const [row] = await TripModel.aggregate([
-    { $match: match },
-    {
-      $group: {
-        _id: null,
-        distanceKm: { $sum: { $ifNull: ["$summary.distanceKm", 0] } },
-        fuelUsedL:  { $sum: { $ifNull: ["$summary.fuelUsedL",  0] } },
-      },
-    },
-    { $project: { _id: 0, distanceKm: 1, fuelUsedL: 1 } },
-  ]);
+  const trips = await TripModel.find(query);
+  const vehicles = await VehicleModel.find();
 
-  const summary = row ?? { distanceKm: 0, fuelUsedL: 0 };
+  const idToVehicleNumber = new Map<string, string>(
+    vehicles.map(v => [String(v._id), v.number])
+  );
+
+  let summary: any = {
+    distanceKm: {
+      total: 0,
+      top: [] as Array<{ vehicleNumber: string; distanceKm: number }>
+    },
+    fuelUsedL: {
+      total: 0,
+      top: [] as Array<{ vehicleNumber: string; fuelUsedL: number }>
+    }
+  }
+
+  const byVehicle = new Map<string, { distanceKm: number; fuelUsedL: number }>();
+
+  for (const trip of trips) {
+    if (!trip.summary) continue;
+
+    const d = trip.summary.distanceKm ?? 0;
+    const f = trip.summary.fuelUsedL ?? 0;
+
+    summary.distanceKm.total += d;
+    summary.fuelUsedL.total  += f;
+
+    const key = String(trip.vehicleId ?? "");
+    if (!key) continue;
+
+    const cur = byVehicle.get(key) ?? { distanceKm: 0, fuelUsedL: 0 };
+    cur.distanceKm += d;
+    cur.fuelUsedL  += f;
+    byVehicle.set(key, cur);
+  }
+
+  const distanceArr = Array.from(byVehicle.entries()).map(([vehicleId, agg]) => ({
+    vehicleNumber: idToVehicleNumber.get(vehicleId) ?? "(unknown)",
+    distanceKm: agg.distanceKm,
+  }));
+
+  const fuelArr = Array.from(byVehicle.entries()).map(([vehicleId, agg]) => ({
+    vehicleNumber: idToVehicleNumber.get(vehicleId) ?? "(unknown)",
+    fuelUsedL: agg.fuelUsedL,
+  }));
+
+  summary.distanceKm.top = distanceArr.sort((a, b) => b.distanceKm - a.distanceKm).slice(0, 3);
+  summary.fuelUsedL.top  = fuelArr.sort((a, b) => b.fuelUsedL  - a.fuelUsedL ).slice(0, 3);
+
   res.status(200).json(summary);
 }

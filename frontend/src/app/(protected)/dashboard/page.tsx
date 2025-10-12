@@ -42,7 +42,7 @@ export default function DashboardPage() {
       })
       .catch((err) => {
         setError(err?.message ?? 'Failed to load');
-        setSummary({ distanceKm: 0.0, fuelUsedL: 0.0 });
+        setSummary({ distanceKm: { total: 0.0, top: [] }, fuelUsedL: { total: 0.0, top: [] } });
       })
       .finally(() => {
         setLoading(false);
@@ -72,8 +72,8 @@ export default function DashboardPage() {
 
       {!loading && (
         <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
-          <TotalDistanceTile km={summary?.distanceKm ?? null} />
-          <TotalFuelTile liters={summary?.fuelUsedL ?? null} />
+          <TotalDistanceTile km={summary?.distanceKm.total ?? null} top={summary?.distanceKm.top ?? null} />
+          <TotalFuelTile liters={summary?.fuelUsedL.total ?? null} top={summary?.fuelUsedL.top ?? null}/>
         </SimpleGrid>
       )}
 
