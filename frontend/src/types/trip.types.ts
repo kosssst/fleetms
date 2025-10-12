@@ -26,6 +26,12 @@ export interface Trip {
     fuelUsedInMotionL: number;
     idleDurationSec: number;
     motionDurationSec: number;
+    speedProfile: {
+      timestamp: Date;
+      obdSpeedKph: number;
+      gpsSpeedKph: number;
+      mergedSpeedKph: number;
+    }[];
   };
   predictionSummary?: {
     fuelUsedL: number;

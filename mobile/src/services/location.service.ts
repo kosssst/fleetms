@@ -57,9 +57,9 @@ class LocationService {
             },
             {
                 enableHighAccuracy: true,
-                interval: 5000,
-                fastestInterval: 2000,
-                distanceFilter: 10,
+                interval: 500,
+                fastestInterval: 200,
+                distanceFilter: 1,
                 showLocationDialog: true,
             },
         );

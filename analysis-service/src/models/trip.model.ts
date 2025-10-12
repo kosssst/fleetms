@@ -31,6 +31,12 @@ export interface ITrip extends Document {
     fuelUsedInMotionL: number;
     idleDurationSec: number;
     motionDurationSec: number;
+    speedProfile: {
+      timestamp: Date;
+      obdSpeedKph: number;
+      gpsSpeedKph: number;
+      mergedSpeedKph: number;
+    }[];
   };
   predictionSummary?: {
     fuelUsedL: number;
@@ -74,6 +80,12 @@ const TripSchema = new Schema<ITrip>({
     fuelUsedInMotionL: { type: Number },
     idleDurationSec: { type: Number },
     motionDurationSec: { type: Number },
+    speedProfile: [{
+      timestamp: { type: Date },
+      obdSpeedKph: { type: Number },
+      gpsSpeedKph: { type: Number },
+      mergedSpeedKph: { type: Number },
+    }],
   },
   predictionSummary: {
     fuelUsedL: { type: Number },

@@ -1,10 +1,10 @@
 import amqplib from 'amqplib';
 import type { Channel, ConfirmChannel } from 'amqplib';
-import mongoose, {Types} from 'mongoose';
+import mongoose, { Types } from 'mongoose';
 import { TripModel } from './models/trip.model';
 import { SampleModel, ISample } from './models/sample.model';
-import { ModelModel, IModel } from "./models/model.model";
-import {VehicleModel} from "./models/vehicle.model";
+import { ModelModel } from "./models/model.model";
+import { VehicleModel } from "./models/vehicle.model";
 
 const MONGO_URI = process.env.MONGODB_URI || 'mongodb://mongo:27017/fleetms';
 const RABBITMQ_URL = process.env.RABBITMQ_URL || 'amqp://user:password@rabbitmq';
@@ -205,48 +205,133 @@ const calculateSummary = (samples: ISample[]) => {
     fuelUsedInMotionL: 0,
     idleDurationSec: 0,
     motionDurationSec: 0,
+    speedProfile: [] as {
+      timestamp: Date;
+      obdSpeedKph: number;
+      gpsSpeedKph: number;
+      mergedSpeedKph: number;
+    }[],
   };
 
-  const MOTION_SPEED_THRESHOLD_KPH = 0.5;
+  if (!samples || samples.length === 0) return summary;
 
-  let totalSpeed = 0;
+  const MOTION_SPEED_THRESHOLD_KPH = 0.5;
+  const EPS_OBD = 0.1;
+  const EPS_MOVE_METERS = 3;
+  const USE_MERGED_FOR_DISTANCE = true;
+
+  const clampNum = (v: unknown, def = 0) => (Number.isFinite(v as number) ? (v as number) : def);
+
+  const haversineKm = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const R = 6371; // км
+    const toRad = (d: number) => (d * Math.PI) / 180;
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  };
+
+  const n = samples.length;
+  const gpsSpeedKph: number[] = new Array(n).fill(0);
+
+  let lastFixIdx = 0;
+  for (let i = 1; i < n; i++) {
+    const si = samples[i];
+    const sl = samples[lastFixIdx];
+
+    const distKm = haversineKm(sl.gps.latitude, sl.gps.longitude, si.gps.latitude, si.gps.longitude);
+    const distMeters = distKm * 1000;
+
+    if (distMeters < EPS_MOVE_METERS) {
+      continue;
+    }
+
+    const dtSec = (si.timestamp.getTime() - sl.timestamp.getTime()) / 1000;
+    if (dtSec > 0 && Number.isFinite(dtSec)) {
+      const vSeg = (distKm / dtSec) * 3600;
+      for (let j = lastFixIdx + 1; j <= i; j++) {
+        gpsSpeedKph[j] = vSeg;
+      }
+    }
+    lastFixIdx = i;
+  }
+
+  let num = 0;
+  let den = 0;
+  for (let i = 0; i < n; i++) {
+    const so = clampNum(samples[i].obd.vehicleSpeed, 0);
+    const sg = clampNum(gpsSpeedKph[i], 0);
+    num += so * sg;
+    den += so * so;
+  }
+  const cHat = den > 0 ? num / den : 1;
+
+  const wGps = 0.6;
+  const wObd = 0.4;
+  const mergedSpeedKph: number[] = new Array(n).fill(0);
+
+  for (let i = 0; i < n; i++) {
+    const so = clampNum(samples[i].obd.vehicleSpeed, 0);
+    const sg = clampNum(gpsSpeedKph[i], 0);
+    const soScaled = cHat * so;
+
+    const diff = sg - soScaled;
+    mergedSpeedKph[i] =
+      Math.abs(diff) <= EPS_OBD
+        ? sg
+        : (wGps * sg + wObd * soScaled) / (wGps + wObd);
+  }
+
+  let totalObdSpeed = 0;
   let totalRpm = 0;
   let totalFuelRateMlps = 0;
 
-  for (let i = 0; i < samples.length; i++) {
+  for (let i = 0; i < n; i++) {
     const s = samples[i];
 
-    const spd = Number.isFinite(s.obd.vehicleSpeed) ? s.obd.vehicleSpeed : 0;
-    const rpm = Number.isFinite(s.obd.engineRpm) ? s.obd.engineRpm : 0;
-    const rateMlps = Number.isFinite(s.obd.fuelConsumptionRate) ? s.obd.fuelConsumptionRate : 0;
+    const spdObd = clampNum(s.obd.vehicleSpeed, 0);
+    const spdGps = gpsSpeedKph[i];
+    const spdMerged = mergedSpeedKph[i];
+    const rpm = clampNum(s.obd.engineRpm, 0);
+    const rateMlps = clampNum(s.obd.fuelConsumptionRate, 0);
 
-    totalSpeed += spd;
+    totalObdSpeed += spdObd;
     totalRpm += rpm;
     totalFuelRateMlps += rateMlps;
 
-    if (spd > summary.maxSpeedKph) summary.maxSpeedKph = spd;
+    if (spdObd > summary.maxSpeedKph) summary.maxSpeedKph = spdObd;
     if (rpm > summary.maxRpm) summary.maxRpm = rpm;
+
+    summary.speedProfile.push({
+      timestamp: s.timestamp,
+      obdSpeedKph: spdObd,
+      gpsSpeedKph: spdGps,
+      mergedSpeedKph: spdMerged,
+    });
 
     if (i > 0) {
       const p = samples[i - 1];
 
-      const prevSpd = Number.isFinite(p.obd.vehicleSpeed) ? p.obd.vehicleSpeed : 0;
-      const prevRate = Number.isFinite(p.obd.fuelConsumptionRate) ? p.obd.fuelConsumptionRate : 0;
+      const prevMerged = mergedSpeedKph[i - 1];
+      const prevRate = clampNum(p.obd.fuelConsumptionRate, 0);
 
       const dt = (s.timestamp.getTime() - p.timestamp.getTime()) / 1000; // s
       if (dt <= 0 || !Number.isFinite(dt)) continue;
 
       summary.durationSec += dt;
 
-      summary.distanceKm += (spd / 3600) * dt;
+      const vAvg = ((USE_MERGED_FOR_DISTANCE ? spdMerged : spdObd) +
+        (USE_MERGED_FOR_DISTANCE ? prevMerged : clampNum(p.obd.vehicleSpeed, 0))) / 2;
+      summary.distanceKm += (vAvg / 3600) * dt;
 
       const rateAvgMlps = (rateMlps + prevRate) / 2;
       const fuelThisIntervalL = (rateAvgMlps / 1000) * dt;
       summary.fuelUsedL += fuelThisIntervalL;
 
-      const avgSpd = (spd + prevSpd) / 2;
-      const isMoving = avgSpd >= MOTION_SPEED_THRESHOLD_KPH;
-
+      const isMoving = vAvg >= MOTION_SPEED_THRESHOLD_KPH;
       if (isMoving) {
         summary.motionDurationSec += dt;
         summary.fuelUsedInMotionL += fuelThisIntervalL;
@@ -263,8 +348,7 @@ const calculateSummary = (samples: ISample[]) => {
     }
   }
 
-  const n = Math.max(1, samples.length);
-  summary.avgSpeedKph = parseFloat((totalSpeed / n).toFixed(1));
+  summary.avgSpeedKph = parseFloat((totalObdSpeed / n).toFixed(1));
   summary.avgRpm = Math.round(totalRpm / n);
 
   const avgMlps = totalFuelRateMlps / n;
