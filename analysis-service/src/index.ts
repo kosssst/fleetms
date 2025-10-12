@@ -269,8 +269,8 @@ const calculateSummary = (samples: ISample[]) => {
   }
   const cHat = den > 0 ? num / den : 1;
 
-  const wGps = 0.6;
-  const wObd = 0.4;
+  const wGps = 0.3;
+  const wObd = 0.7;
   const mergedSpeedKph: number[] = new Array(n).fill(0);
 
   for (let i = 0; i < n; i++) {
