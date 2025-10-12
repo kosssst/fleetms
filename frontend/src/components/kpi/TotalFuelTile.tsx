@@ -10,7 +10,7 @@ export function TotalFuelTile({ liters, top, max = 3, loadingTop = false, }: { l
 
   return (
     <Card withBorder radius="md" p="md">
-      <Text c="dimmed" size="sm">Fuel used (period)</Text>
+      <Text c="dimmed" size="sm">Fuel used</Text>
       <Group gap="xs" mt={6}>
         <Title order={2}>{val}</Title>
         <Text c="dimmed">L</Text>

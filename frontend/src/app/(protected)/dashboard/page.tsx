@@ -8,6 +8,8 @@ import type { Summary } from "@/types/dashboard.types";
 import { TotalDistanceTile } from "@/components/kpi/TotalDistanceTile";
 import { TotalFuelTile } from "@/components/kpi/TotalFuelTile";
 import {getSummary} from "@/services/dashboard.service";
+import {FuelUsedSplitTile} from "@/components/kpi/FuelUsedSplitTile";
+import {TimeSplitTile} from "@/components/kpi/TimeSplitTile";
 
 
 export default function DashboardPage() {
@@ -42,7 +44,7 @@ export default function DashboardPage() {
       })
       .catch((err) => {
         setError(err?.message ?? 'Failed to load');
-        setSummary({ distanceKm: { total: 0.0, top: [] }, fuelUsedL: { total: 0.0, top: [] } });
+        setSummary({ distanceKm: { total: 0.0, top: [] }, fuelUsedL: { total: 0.0, top: [] }, fuelUsedInMotionL: 0.0, fuelUsedInIdleL: 0.0, idleDurationSec: 0.0, motionDurationSec: 0.0 });
       })
       .finally(() => {
         setLoading(false);
@@ -73,7 +75,9 @@ export default function DashboardPage() {
       {!loading && (
         <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
           <TotalDistanceTile km={summary?.distanceKm.total ?? null} top={summary?.distanceKm.top ?? null} />
-          <TotalFuelTile liters={summary?.fuelUsedL.total ?? null} top={summary?.fuelUsedL.top ?? null}/>
+          <TotalFuelTile liters={summary?.fuelUsedL.total ?? null} top={summary?.fuelUsedL.top ?? null} />
+          <FuelUsedSplitTile fuelUsedTotalL={summary?.fuelUsedL.total ?? null} fuelUsedInIdleL={summary?.fuelUsedInIdleL ?? 0} fuelUsedInMotionL={summary?.fuelUsedInMotionL ?? 0} />
+          <TimeSplitTile idleDurationSec={summary?.idleDurationSec ?? 0} motionDurationSec={summary?.motionDurationSec ?? 0} />
         </SimpleGrid>
       )}
 

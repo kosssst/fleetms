@@ -183,34 +183,60 @@ const calculateSummary = (samples: ISample[]) => {
     maxRpm: 0,
     fuelUsedL: 0,
     avgFuelRateLph: 0,
-    route: [] as { latitude: number, longitude: number }[],
+    route: [] as { latitude: number; longitude: number }[],
+    fuelUsedInIdleL: 0,
+    fuelUsedInMotionL: 0,
+    idleDurationSec: 0,
+    motionDurationSec: 0,
   };
+
+  const MOTION_SPEED_THRESHOLD_KPH = 0.5;
 
   let totalSpeed = 0;
   let totalRpm = 0;
-  let totalFuelRateMlps = 0;      // <-- accumulate ml/s
+  let totalFuelRateMlps = 0;
 
   for (let i = 0; i < samples.length; i++) {
     const s = samples[i];
 
-    totalSpeed += s.obd.vehicleSpeed;
-    totalRpm   += s.obd.engineRpm;
-    totalFuelRateMlps += s.obd.fuelConsumptionRate; // ml/s
+    const spd = Number.isFinite(s.obd.vehicleSpeed) ? s.obd.vehicleSpeed : 0;
+    const rpm = Number.isFinite(s.obd.engineRpm) ? s.obd.engineRpm : 0;
+    const rateMlps = Number.isFinite(s.obd.fuelConsumptionRate) ? s.obd.fuelConsumptionRate : 0;
 
-    if (s.obd.vehicleSpeed > summary.maxSpeedKph) summary.maxSpeedKph = s.obd.vehicleSpeed;
-    if (s.obd.engineRpm    > summary.maxRpm)      summary.maxRpm     = s.obd.engineRpm;
+    totalSpeed += spd;
+    totalRpm += rpm;
+    totalFuelRateMlps += rateMlps;
+
+    if (spd > summary.maxSpeedKph) summary.maxSpeedKph = spd;
+    if (rpm > summary.maxRpm) summary.maxRpm = rpm;
 
     if (i > 0) {
       const p = samples[i - 1];
+
+      const prevSpd = Number.isFinite(p.obd.vehicleSpeed) ? p.obd.vehicleSpeed : 0;
+      const prevRate = Number.isFinite(p.obd.fuelConsumptionRate) ? p.obd.fuelConsumptionRate : 0;
+
       const dt = (s.timestamp.getTime() - p.timestamp.getTime()) / 1000; // s
+      if (dt <= 0 || !Number.isFinite(dt)) continue;
 
       summary.durationSec += dt;
 
-      // If you still want speed-based distance here:
-      summary.distanceKm += (s.obd.vehicleSpeed / 3600) * dt;
+      summary.distanceKm += (spd / 3600) * dt;
 
-      // Fuel used: ml/s -> L over dt
-      summary.fuelUsedL += (s.obd.fuelConsumptionRate / 1000) * dt;
+      const rateAvgMlps = (rateMlps + prevRate) / 2;
+      const fuelThisIntervalL = (rateAvgMlps / 1000) * dt;
+      summary.fuelUsedL += fuelThisIntervalL;
+
+      const avgSpd = (spd + prevSpd) / 2;
+      const isMoving = avgSpd >= MOTION_SPEED_THRESHOLD_KPH;
+
+      if (isMoving) {
+        summary.motionDurationSec += dt;
+        summary.fuelUsedInMotionL += fuelThisIntervalL;
+      } else {
+        summary.idleDurationSec += dt;
+        summary.fuelUsedInIdleL += fuelThisIntervalL;
+      }
 
       if (s.gps.latitude !== p.gps.latitude || s.gps.longitude !== p.gps.longitude) {
         summary.route.push({ latitude: s.gps.latitude, longitude: s.gps.longitude });
@@ -221,21 +247,22 @@ const calculateSummary = (samples: ISample[]) => {
   }
 
   const n = Math.max(1, samples.length);
-  summary.avgSpeedKph   = parseFloat((totalSpeed / n).toFixed(1));
-  summary.avgRpm        = Math.round(totalRpm / n);
+  summary.avgSpeedKph = parseFloat((totalSpeed / n).toFixed(1));
+  summary.avgRpm = Math.round(totalRpm / n);
 
-  // Average ml/s -> L/h
   const avgMlps = totalFuelRateMlps / n;
   summary.avgFuelRateLph = parseFloat((avgMlps * 3.6).toFixed(2));
 
-  // Final rounding / formatting
   summary.distanceKm = parseFloat(summary.distanceKm.toFixed(2));
-  summary.fuelUsedL  = parseFloat(summary.fuelUsedL.toFixed(2));
+  summary.fuelUsedL = parseFloat(summary.fuelUsedL.toFixed(2));
+  summary.fuelUsedInIdleL = parseFloat(summary.fuelUsedInIdleL.toFixed(2));
+  summary.fuelUsedInMotionL = parseFloat(summary.fuelUsedInMotionL.toFixed(2));
   summary.maxSpeedKph = Math.round(summary.maxSpeedKph);
-  summary.maxRpm      = Math.round(summary.maxRpm);
+  summary.maxRpm = Math.round(summary.maxRpm);
 
   return summary;
 };
+
 
 const startService = async () => {
   await connectDB();

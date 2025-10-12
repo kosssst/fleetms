@@ -2,11 +2,15 @@ export type Summary = {
   distanceKm: {
     total: number;
     top: Array<{ vehicleNumber: string; distanceKm: number }>;
-  }
+  },
   fuelUsedL: {
     total: number;
     top: Array<{ vehicleNumber: string; fuelUsedL: number }>;
-  }
+  },
+  fuelUsedInIdleL: number;
+  fuelUsedInMotionL: number;
+  idleDurationSec: number;
+  motionDurationSec: number;
 };
 
 export type DistanceTopItem = {

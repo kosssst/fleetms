@@ -26,6 +26,10 @@ export interface ITrip extends Document {
       latitude: number;
       longitude: number;
     }[];
+    fuelUsedInIdleL: number;
+    fuelUsedInMotionL: number;
+    idleDurationSec: number;
+    motionDurationSec: number;
   };
   predictionSummary?: {
     fuelUsedL: number;
@@ -64,6 +68,10 @@ const TripSchema = new Schema<ITrip>({
       latitude: { type: Number },
       longitude: { type: Number },
     }],
+    fuelUsedInIdleL: { type: Number },
+    fuelUsedInMotionL: { type: Number },
+    idleDurationSec: { type: Number },
+    motionDurationSec: { type: Number },
   },
   predictionSummary: {
     fuelUsedL: { type: Number },

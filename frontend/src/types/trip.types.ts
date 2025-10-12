@@ -22,6 +22,10 @@ export interface Trip {
       latitude: number;
       longitude: number;
     }[];
+    fuelUsedInIdleL: number;
+    fuelUsedInMotionL: number;
+    idleDurationSec: number;
+    motionDurationSec: number;
   };
   predictionSummary?: {
     fuelUsedL: number;

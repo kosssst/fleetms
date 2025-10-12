@@ -125,6 +125,18 @@ const TripDetailsPage = () => {
                 <Text>Max RPM: {trip.summary.maxRpm}</Text>
                 <Text>Fuel Used: {trip.summary.fuelUsedL}L</Text>
                 <Text>Average Fuel Rate: {trip.summary.avgFuelRateLph}L/h</Text>
+                {trip.summary.fuelUsedInIdleL ? (
+                  <Text>Fuel Used in Idle: {trip.summary.fuelUsedInIdleL}L</Text>
+                ) : null}
+                {trip.summary.fuelUsedInMotionL ? (
+                  <Text>Fuel Used in Motion: {trip.summary.fuelUsedInMotionL}L</Text>
+                ) : null}
+                {trip.summary.idleDurationSec ? (
+                  <Text>Idle Duration: {formatDuration(trip.summary.idleDurationSec)}</Text>
+                ) : null}
+                {trip.summary.motionDurationSec ? (
+                  <Text>Motion Duration: {formatDuration(trip.summary.motionDurationSec)}</Text>
+                ) : null}
               </>
             ) : (
               <Text>Summary not available.</Text>

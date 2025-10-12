@@ -10,7 +10,7 @@ export function TotalDistanceTile({ km, top, max = 3, loadingTop = false, }: { k
 
   return (
     <Card withBorder radius="md" p="md">
-      <Text c="dimmed" size="sm">Total distance (period)</Text>
+      <Text c="dimmed" size="sm">Total distance</Text>
       <Group gap="xs" mt={6}>
         <Title order={2}>{val}</Title>
         <Text c="dimmed">km</Text>

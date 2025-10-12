@@ -51,7 +51,11 @@ export const getSummary = async (req: RequestWithUser, res: any) => {
     fuelUsedL: {
       total: 0,
       top: [] as Array<{ vehicleNumber: string; fuelUsedL: number }>
-    }
+    },
+    fuelUsedInIdleL: 0,
+    fuelUsedInMotionL: 0,
+    idleDurationSec: 0,
+    motionDurationSec: 0,
   }
 
   const byVehicle = new Map<string, { distanceKm: number; fuelUsedL: number }>();
@@ -61,9 +65,17 @@ export const getSummary = async (req: RequestWithUser, res: any) => {
 
     const d = trip.summary.distanceKm ?? 0;
     const f = trip.summary.fuelUsedL ?? 0;
+    const fi = trip.summary.fuelUsedInIdleL ?? 0;
+    const fm = trip.summary.fuelUsedInMotionL ?? 0;
+    const idl = trip.summary.idleDurationSec ?? 0;
+    const mot = trip.summary.motionDurationSec ?? 0;
 
-    summary.distanceKm.total += d;
-    summary.fuelUsedL.total  += f;
+    summary.distanceKm.total  += d;
+    summary.fuelUsedL.total   += f;
+    summary.fuelUsedInIdleL   += fi;
+    summary.fuelUsedInMotionL += fm;
+    summary.idleDurationSec   += idl;
+    summary.motionDurationSec += mot;
 
     const key = String(trip.vehicleId ?? "");
     if (!key) continue;
