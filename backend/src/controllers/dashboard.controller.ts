@@ -86,6 +86,7 @@ export const getSummary = async (req: RequestWithUser, res: any) => {
     motionDurationSec: number;
     topFuelPer100Km: TopFuelEfficiency[];
     fuelUsedPerDay: Array<{ date: string; fuelUsedL: number }>;
+    needsInspection: string[];
   } = {
     distanceKm: { total: 0, top: [] },
     fuelUsedL: { total: 0, top: [] },
@@ -95,6 +96,7 @@ export const getSummary = async (req: RequestWithUser, res: any) => {
     motionDurationSec: 0,
     topFuelPer100Km: [],
     fuelUsedPerDay: [],
+    needsInspection: [],
   };
 
   // Пройтись по поїздках і зібрати тотали та денне паливо
@@ -198,9 +200,22 @@ export const getSummary = async (req: RequestWithUser, res: any) => {
     fuelUsedL: Math.round(((dailyFuel.get(date) ?? 0) + Number.EPSILON) * 100) / 100,
   }));
 
-  // Округлити тотали красиво (щоб уникнути 420.37999999998)
-  summary.distanceKm.total = Math.round((summary.distanceKm.total + Number.EPSILON) * 100) / 100;
-  summary.fuelUsedL.total = Math.round((summary.fuelUsedL.total + Number.EPSILON) * 100) / 100;
+  // ---- ДОДАНО: перелік авто, що потребують огляду ----
+  // Беремо всі авто компанії з needsInspection=true і кладемо їхні number
+  const flagged = await VehicleModel.find({
+    companyId: new Types.ObjectId(user.companyId),
+    needsInspection: true,
+  })
+    .select({ number: 1 })
+    .lean();
+
+  summary.needsInspection = flagged.map((v) => v.number).filter(Boolean);
+
+  // Округлити тотали красиво
+  summary.distanceKm.total =
+    Math.round((summary.distanceKm.total + Number.EPSILON) * 100) / 100;
+  summary.fuelUsedL.total =
+    Math.round((summary.fuelUsedL.total + Number.EPSILON) * 100) / 100;
   summary.fuelUsedInIdleL =
     Math.round((summary.fuelUsedInIdleL + Number.EPSILON) * 100) / 100;
   summary.fuelUsedInMotionL =

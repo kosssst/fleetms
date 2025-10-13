@@ -13,6 +13,7 @@ export type Summary = {
   motionDurationSec: number;
   topFuelPer100Km: Array<{ vehicleNumber: string; fuelPer100Km: number }>;
   fuelUsedPerDay: Array<{ date: string; fuelUsedL: number }>;
+  needsInspection: Array<string>;
 };
 
 export type DistanceTopItem = {

@@ -13,6 +13,7 @@ import {
   Group,
   useMantineTheme,
   Checkbox,
+  useComputedColorScheme,
 } from "@mantine/core";
 import { MapContainer, TileLayer, Polyline, CircleMarker } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
@@ -32,6 +33,8 @@ const TripDetailsPage = () => {
   const { id } = useParams();
   const router = useRouter();
   const theme = useMantineTheme();
+  const colorScheme = useComputedColorScheme("light", { getInitialValueInEffect: true });
+  const isDark = colorScheme === "dark";
 
   const [trip, setTrip] = useState<Trip | null>(null);
   const [loading, setLoading] = useState(false);
@@ -44,11 +47,19 @@ const TripDetailsPage = () => {
     merged: true,
   });
 
-  // fix for SyntheticEvent pooling: read checked before setState
+  // 24h time formatter
+  const fmtTime = (ts: number) =>
+    new Date(ts).toLocaleTimeString(undefined, {
+      hour12: false,
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+
   const handleSeriesToggle =
     (key: "gps" | "obd" | "merged") =>
       (e: ChangeEvent<HTMLInputElement>) => {
-        const { checked } = e.currentTarget; // read now, before state update
+        const { checked } = e.currentTarget;
         setSeriesVisible((s) => ({ ...s, [key]: checked }));
       };
 
@@ -119,7 +130,6 @@ const TripDetailsPage = () => {
   const speedData =
     trip.summary?.speedProfile?.map((p) => ({
       t: new Date(p.timestamp).getTime(),
-      timeLabel: new Date(p.timestamp).toLocaleTimeString(),
       gps: Number.isFinite(p.gpsSpeedKph) ? p.gpsSpeedKph : 0,
       obd: Number.isFinite(p.obdSpeedKph) ? p.obdSpeedKph : 0,
       merged: Number.isFinite(p.mergedSpeedKph) ? p.mergedSpeedKph : 0,
@@ -129,6 +139,15 @@ const TripDetailsPage = () => {
   const cGps = theme.colors.blue?.[6] ?? "#228be6";
   const cObd = theme.colors.red?.[6] ?? "#fa5252";
   const cMerged = theme.colors.green?.[6] ?? "#40c057";
+
+  // tooltip dark styling
+  const tooltipBg = isDark ? (theme.colors.dark?.[6] ?? "#1a1b1e") : "#fff";
+  const tooltipBorder = isDark
+    ? (theme.colors.dark?.[4] ?? "#2c2e33")
+    : (theme.colors.gray?.[3] ?? "#ced4da");
+  const tooltipColor = isDark
+    ? (theme.colors.gray?.[0] ?? "#f8f9fa")
+    : theme.black;
 
   return (
     <div className="main-context">
@@ -203,8 +222,7 @@ const TripDetailsPage = () => {
                 ) : null}
                 {trip.summary.motionDurationSec ? (
                   <Text>
-                    Motion Duration:{" "}
-                    {formatDuration(trip.summary.motionDurationSec)}
+                    Motion Duration: {formatDuration(trip.summary.motionDurationSec)}
                   </Text>
                 ) : null}
               </>
@@ -266,9 +284,7 @@ const TripDetailsPage = () => {
                       dataKey="t"
                       type="number"
                       domain={["dataMin", "dataMax"]}
-                      tickFormatter={(ts: number) =>
-                        new Date(ts).toLocaleTimeString()
-                      }
+                      tickFormatter={(ts: number) => fmtTime(ts)}
                       tick={{ fontSize: 12 }}
                       minTickGap={40}
                     />
@@ -287,10 +303,18 @@ const TripDetailsPage = () => {
                         String(name ?? ""),
                       ]}
                       labelFormatter={(ts: unknown) =>
-                        typeof ts === "number"
-                          ? new Date(ts).toLocaleTimeString()
-                          : String(ts ?? "")
+                        typeof ts === "number" ? fmtTime(ts) : String(ts ?? "")
                       }
+                      wrapperStyle={{ outline: "none" }}
+                      contentStyle={{
+                        background: tooltipBg,
+                        color: tooltipColor,
+                        border: `1px solid ${tooltipBorder}`,
+                        borderRadius: 10,
+                        boxShadow: "0 8px 24px rgba(0,0,0,.35)",
+                      }}
+                      labelStyle={{ color: tooltipColor, marginBottom: 6 }}
+                      itemStyle={{ color: tooltipColor }}
                     />
                     <Legend />
                     {seriesVisible.gps && (

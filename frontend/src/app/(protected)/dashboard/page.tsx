@@ -45,7 +45,7 @@ export default function DashboardPage() {
       })
       .catch((err) => {
         setError(err?.message ?? 'Failed to load');
-        setSummary({ distanceKm: { total: 0.0, top: [] }, fuelUsedL: { total: 0.0, top: [] }, fuelUsedInMotionL: 0.0, fuelUsedInIdleL: 0.0, idleDurationSec: 0.0, motionDurationSec: 0.0, topFuelPer100Km: [], fuelUsedPerDay: [] });
+        setSummary({ distanceKm: { total: 0.0, top: [] }, fuelUsedL: { total: 0.0, top: [] }, fuelUsedInMotionL: 0.0, fuelUsedInIdleL: 0.0, idleDurationSec: 0.0, motionDurationSec: 0.0, topFuelPer100Km: [], fuelUsedPerDay: [], needsInspection: [] });
       })
       .finally(() => {
         setLoading(false);
@@ -80,7 +80,7 @@ export default function DashboardPage() {
           <FuelUsedSplitTile fuelUsedTotalL={summary?.fuelUsedL.total ?? null} fuelUsedInIdleL={summary?.fuelUsedInIdleL ?? 0} fuelUsedInMotionL={summary?.fuelUsedInMotionL ?? 0} />
           <TimeSplitTile idleDurationSec={summary?.idleDurationSec ?? 0} motionDurationSec={summary?.motionDurationSec ?? 0} />
           <FuelPerDayTile data={summary?.fuelUsedPerDay ?? null} />
-          <FuelEfficiency top={summary?.topFuelPer100Km ?? null} />
+          <FuelEfficiency top={summary?.topFuelPer100Km ?? null} needsInspection={summary?.needsInspection ?? []} />
         </SimpleGrid>
       )}
 

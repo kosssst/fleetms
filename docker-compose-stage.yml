@@ -133,6 +133,20 @@ services:
     networks:
       - fleetms-network
 
+  notification-service:
+    build: ./notification-service
+    restart: unless-stopped
+    environment:
+      - MONGODB_URI=mongodb://mongo:27017/fleetms
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}
+      - MONGO_DB=fleetms
+      - SLACK_CHANNEL=#alerts
+    depends_on:
+      mongo:
+        condition: service_started
+    networks:
+      - fleetms-network
+
 volumes:
   db_data:
   models_data:
