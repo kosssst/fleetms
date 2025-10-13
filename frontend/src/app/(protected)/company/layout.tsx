@@ -1,6 +1,6 @@
 'use client';
 
-import {Tabs, rem, Paper} from '@mantine/core';
+import {Tabs, rem } from '@mantine/core';
 import { useMemo } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import {
@@ -47,10 +47,7 @@ export default function CompanyLayout({ children }: { children: React.ReactNode 
           ))}
         </Tabs.List>
       </Tabs>
-
-      <Paper withBorder radius="md" p="md" mt="md">
-        {children}
-      </Paper>
+      {children}
     </CompanyGuard>
   );
 }

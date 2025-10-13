@@ -1,7 +1,10 @@
 import {TripsTable} from "@/components/tables/TripsTable";
+import {Paper} from "@mantine/core";
 
 export default function TripsPage() {
   return (
-    <TripsTable />
+    <Paper withBorder p="md" mt="md" radius="md">
+      <TripsTable />
+    </Paper>
   )
 }

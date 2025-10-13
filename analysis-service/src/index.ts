@@ -20,6 +20,13 @@ let consumeCh: Channel;
 let publishCh: ConfirmChannel;
 let predictCh: ConfirmChannel;
 
+type SpeedPoint = {
+  timestamp: Date;
+  obdSpeedKph: number;
+  gpsSpeedKph: number;
+  mergedSpeedKph: number;
+};
+
 function toObjectId(id: string) {
   if (Types.ObjectId.isValid(id)) return new Types.ObjectId(id);
   return null;
@@ -205,26 +212,45 @@ const calculateSummary = (samples: ISample[]) => {
     fuelUsedInMotionL: 0,
     idleDurationSec: 0,
     motionDurationSec: 0,
-    speedProfile: [] as {
-      timestamp: Date;
-      obdSpeedKph: number;
-      gpsSpeedKph: number;
-      mergedSpeedKph: number;
-    }[],
+    speedProfile: [] as SpeedPoint[],
   };
 
   if (!samples || samples.length === 0) return summary;
 
+  // ---------------------- ПАРАМЕТРИ ----------------------
   const MOTION_SPEED_THRESHOLD_KPH = 0.5;
-  const EPS_OBD = 0.1;
-  const EPS_MOVE_METERS = 3;
-  const USE_MERGED_FOR_DISTANCE = true;
 
+  // GPS сегментування/фільтрація (для графіка)
+  const GPS_SAME_EPS_M = 10.0;
+  const GPS_MIN_SPAN_S = 1.5;
+  const GPS_MAX_SPAN_S = 15.0;
+  const GPS_GAP_S = 6.0;
+
+  const MED_WIN = 5;
+  const HAMPEL_WIN = 5;
+  const HAMPEL_K = 3;
+  const VMAX_KPH = 160.0;
+
+  // Фізика
+  const A_ACCEL_MAX_MS2 = 6.0;
+  const A_DECEL_MAX_MS2 = 6.0;
+  const PHYS_MARGIN_KPH = 5.0;
+
+  // Злиття (виключно для графіка)
+  const BASE_ALPHA_OBD = 0.8;
+  const MISMATCH_THR_KPH = 5.0;
+  const MAX_ALPHA_OBD = 0.98;
+  const EPS_MERGE_DEADZONE = 0.1;
+  const REL_SPIKE_OVER_OBD_KPH = 8.0;
+  const REL_SPIKE_RATIO_OVER_OBD = 1.25;
+
+  // ---------------------- ХЕЛПЕРИ ----------------------
   const clampNum = (v: unknown, def = 0) => (Number.isFinite(v as number) ? (v as number) : def);
+  const toTs = (d: Date) => d.getTime() / 1000;
 
   const haversineKm = (lat1: number, lon1: number, lat2: number, lon2: number) => {
-    const R = 6371; // км
-    const toRad = (d: number) => (d * Math.PI) / 180;
+    const R = 6371.0;
+    const toRad = (x: number) => (x * Math.PI) / 180;
     const dLat = toRad(lat2 - lat1);
     const dLon = toRad(lon2 - lon1);
     const a =
@@ -234,57 +260,141 @@ const calculateSummary = (samples: ISample[]) => {
     return R * c;
   };
 
+  const median = (arr: number[]) => {
+    if (arr.length === 0) return 0;
+    const a = [...arr].sort((x, y) => x - y);
+    const m = Math.floor(a.length / 2);
+    return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2;
+  };
+
+  const windowSlice = (arr: number[], i: number, win: number) => {
+    const half = Math.floor(win / 2);
+    const a = Math.max(0, i - half);
+    const b = Math.min(arr.length - 1, i + half);
+    return arr.slice(a, b + 1);
+  };
+
+  const hampelFilter = (x: number[], win: number, k: number) => {
+    const out = x.slice();
+    for (let i = 0; i < x.length; i++) {
+      const w = windowSlice(x, i, win);
+      const med = median(w);
+      const absDev = w.map((v) => Math.abs(v - med));
+      const mad = median(absDev) || 1e-6;
+      if (Math.abs(x[i] - med) > k * 1.4826 * mad) out[i] = med;
+    }
+    return out;
+  };
+
+  const enforceAccelBounds = (v: number[], ts: number[]) => {
+    const out = v.slice();
+    // forward
+    for (let i = 1; i < out.length; i++) {
+      const dt = Math.max(0, ts[i] - ts[i - 1]);
+      if (!(dt > 0)) continue;
+      const dvp = dt * A_ACCEL_MAX_MS2 * 3.6 + PHYS_MARGIN_KPH;
+      const dvm = dt * A_DECEL_MAX_MS2 * 3.6 + PHYS_MARGIN_KPH;
+      const up = out[i - 1] + dvp;
+      const low = Math.max(0, out[i - 1] - dvm);
+      out[i] = Math.min(Math.max(out[i], low), up);
+    }
+    // backward
+    for (let i = out.length - 2; i >= 0; i--) {
+      const dt = Math.max(0, ts[i + 1] - ts[i]);
+      if (!(dt > 0)) continue;
+      const dvp = dt * A_ACCEL_MAX_MS2 * 3.6 + PHYS_MARGIN_KPH;
+      const dvm = dt * A_DECEL_MAX_MS2 * 3.6 + PHYS_MARGIN_KPH;
+      const up = out[i + 1] + dvm;
+      const low = Math.max(0, out[i + 1] - dvp);
+      out[i] = Math.min(Math.max(out[i], low), up);
+    }
+    for (let i = 0; i < out.length; i++) out[i] = Math.min(Math.max(out[i], 0), VMAX_KPH);
+    return out;
+  };
+
+  // ---------------------- ПЛОСКІ МАСИВИ ----------------------
   const n = samples.length;
-  const gpsSpeedKph: number[] = new Array(n).fill(0);
+  const lat = samples.map((s) => s.gps.latitude);
+  const lon = samples.map((s) => s.gps.longitude);
+  const ts = samples.map((s) => toTs(s.timestamp));
+  const vObd = samples.map((s) => clampNum(s.obd.vehicleSpeed, 0));
+  const rpm = samples.map((s) => clampNum(s.obd.engineRpm, 0));
+  const rateMlps = samples.map((s) => clampNum(s.obd.fuelConsumptionRate, 0));
 
-  let lastFixIdx = 0;
-  for (let i = 1; i < n; i++) {
-    const si = samples[i];
-    const sl = samples[lastFixIdx];
-
-    const distKm = haversineKm(sl.gps.latitude, sl.gps.longitude, si.gps.latitude, si.gps.longitude);
-    const distMeters = distKm * 1000;
-
-    if (distMeters < EPS_MOVE_METERS) {
-      continue;
+  // ---------------------- GPS для графіка (segment+fallback → median → Hampel → clamps) ----------------------
+  const gpsSeg: number[] = new Array(n).fill(0);
+  let anchor = 0;
+  while (anchor < n - 1) {
+    let j = anchor + 1;
+    while (j < n) {
+      const distM = haversineKm(lat[anchor], lon[anchor], lat[j], lon[j]) * 1000;
+      if (Number.isFinite(distM) && distM > GPS_SAME_EPS_M) break;
+      j++;
     }
-
-    const dtSec = (si.timestamp.getTime() - sl.timestamp.getTime()) / 1000;
-    if (dtSec > 0 && Number.isFinite(dtSec)) {
-      const vSeg = (distKm / dtSec) * 3600;
-      for (let j = lastFixIdx + 1; j <= i; j++) {
-        gpsSpeedKph[j] = vSeg;
+    if (j < n) {
+      const dt = ts[j] - ts[anchor];
+      if (dt > GPS_MIN_SPAN_S && dt <= GPS_MAX_SPAN_S) {
+        const distKm = haversineKm(lat[anchor], lon[anchor], lat[j], lon[j]);
+        const vSeg = (distKm / dt) * 3600;
+        for (let k = anchor + 1; k <= j; k++) gpsSeg[k] = vSeg;
       }
+      anchor = j;
+    } else break;
+  }
+
+  const gpsFallback: number[] = new Array(n).fill(0);
+  for (let i = 1; i < n; i++) {
+    const dt = ts[i] - ts[i - 1];
+    const dKm = haversineKm(lat[i - 1], lon[i - 1], lat[i], lon[i]);
+    gpsFallback[i] = dt > 0 && dt <= GPS_GAP_S ? (dKm / dt) * 3600 : 0;
+  }
+
+  const gpsRaw: number[] = new Array(n).fill(0);
+  for (let i = 0; i < n; i++) gpsRaw[i] = gpsSeg[i] > 0 ? gpsSeg[i] : gpsFallback[i];
+
+  const gpsMed = gpsRaw.map((_, i) => median(windowSlice(gpsRaw, i, MED_WIN)));
+  const gpsHampel = hampelFilter(gpsMed, HAMPEL_WIN, HAMPEL_K);
+  let gpsSmooth = gpsHampel.map((v) => (v > 0 ? Math.min(v, VMAX_KPH) : 0));
+
+  for (let i = 1; i < n; i++) {
+    const dt = Math.max(0, ts[i] - ts[i - 1]);
+    if (!(dt > 0)) continue;
+    const vPrevRef = Number.isFinite(vObd[i - 1]) ? vObd[i - 1] : gpsSmooth[i - 1];
+    const dvp = dt * A_ACCEL_MAX_MS2 * 3.6 + PHYS_MARGIN_KPH;
+    const dvm = dt * A_DECEL_MAX_MS2 * 3.6 + PHYS_MARGIN_KPH;
+    const up = vPrevRef + dvp;
+    const low = Math.max(0, vPrevRef - dvm);
+    gpsSmooth[i] = Math.min(Math.max(gpsSmooth[i], low), up);
+  }
+
+  // анти-спайк GPS відносно OBD (лише для графіка)
+  for (let i = 0; i < n; i++) {
+    const so = vObd[i];
+    const cap = Math.max(
+      0,
+      Math.min(so + REL_SPIKE_OVER_OBD_KPH, so * REL_SPIKE_RATIO_OVER_OBD, VMAX_KPH)
+    );
+    gpsSmooth[i] = Math.min(gpsSmooth[i], cap);
+  }
+
+  // злиття для графіка
+  const merged: number[] = new Array(n).fill(0);
+  for (let i = 0; i < n; i++) {
+    const so = vObd[i];
+    const sg = gpsSmooth[i];
+    const diff = Math.abs(so - sg);
+    let alpha = BASE_ALPHA_OBD;
+    if (diff > MISMATCH_THR_KPH) {
+      const t = Math.min(1, (diff - MISMATCH_THR_KPH) / 30);
+      alpha = Math.min(MAX_ALPHA_OBD, BASE_ALPHA_OBD + t * (MAX_ALPHA_OBD - BASE_ALPHA_OBD));
     }
-    lastFixIdx = i;
+    if (!(sg > 0)) alpha = Math.max(alpha, 0.9);
+    const fused = Math.abs(sg - so) <= EPS_MERGE_DEADZONE ? sg : alpha * so + (1 - alpha) * sg;
+    merged[i] = Math.max(0, Math.min(fused, VMAX_KPH));
   }
+  const mergedBounded = enforceAccelBounds(merged, ts);
 
-  let num = 0;
-  let den = 0;
-  for (let i = 0; i < n; i++) {
-    const so = clampNum(samples[i].obd.vehicleSpeed, 0);
-    const sg = clampNum(gpsSpeedKph[i], 0);
-    num += so * sg;
-    den += so * so;
-  }
-  const cHat = den > 0 ? num / den : 1;
-
-  const wGps = 0.3;
-  const wObd = 0.7;
-  const mergedSpeedKph: number[] = new Array(n).fill(0);
-
-  for (let i = 0; i < n; i++) {
-    const so = clampNum(samples[i].obd.vehicleSpeed, 0);
-    const sg = clampNum(gpsSpeedKph[i], 0);
-    const soScaled = cHat * so;
-
-    const diff = sg - soScaled;
-    mergedSpeedKph[i] =
-      Math.abs(diff) <= EPS_OBD
-        ? sg
-        : (wGps * sg + wObd * soScaled) / (wGps + wObd);
-  }
-
+  // ---------------------- ІНТЕГРАЦІЯ: лише OBD ----------------------
   let totalObdSpeed = 0;
   let totalRpm = 0;
   let totalFuelRateMlps = 0;
@@ -292,18 +402,18 @@ const calculateSummary = (samples: ISample[]) => {
   for (let i = 0; i < n; i++) {
     const s = samples[i];
 
-    const spdObd = clampNum(s.obd.vehicleSpeed, 0);
-    const spdGps = gpsSpeedKph[i];
-    const spdMerged = mergedSpeedKph[i];
-    const rpm = clampNum(s.obd.engineRpm, 0);
-    const rateMlps = clampNum(s.obd.fuelConsumptionRate, 0);
+    const spdObd = vObd[i];
+    const spdGps = gpsSmooth[i];       // для графіка
+    const spdMerged = mergedBounded[i]; // для графіка
+    const erpm = rpm[i];
+    const rate = rateMlps[i];
 
     totalObdSpeed += spdObd;
-    totalRpm += rpm;
-    totalFuelRateMlps += rateMlps;
+    totalRpm += erpm;
+    totalFuelRateMlps += rate;
 
     if (spdObd > summary.maxSpeedKph) summary.maxSpeedKph = spdObd;
-    if (rpm > summary.maxRpm) summary.maxRpm = rpm;
+    if (erpm > summary.maxRpm) summary.maxRpm = erpm;
 
     summary.speedProfile.push({
       timestamp: s.timestamp,
@@ -313,25 +423,23 @@ const calculateSummary = (samples: ISample[]) => {
     });
 
     if (i > 0) {
-      const p = samples[i - 1];
-
-      const prevMerged = mergedSpeedKph[i - 1];
-      const prevRate = clampNum(p.obd.fuelConsumptionRate, 0);
-
-      const dt = (s.timestamp.getTime() - p.timestamp.getTime()) / 1000; // s
-      if (dt <= 0 || !Number.isFinite(dt)) continue;
+      const dt = ts[i] - ts[i - 1];
+      if (!(dt > 0)) continue;
 
       summary.durationSec += dt;
 
-      const vAvg = ((USE_MERGED_FOR_DISTANCE ? spdMerged : spdObd) +
-        (USE_MERGED_FOR_DISTANCE ? prevMerged : clampNum(p.obd.vehicleSpeed, 0))) / 2;
-      summary.distanceKm += (vAvg / 3600) * dt;
+      // Дистанція: **OBD only**
+      const vAvgObd = (vObd[i] + vObd[i - 1]) / 2;
+      summary.distanceKm += (vAvgObd / 3600) * dt;
 
-      const rateAvgMlps = (rateMlps + prevRate) / 2;
-      const fuelThisIntervalL = (rateAvgMlps / 1000) * dt;
+      // Паливо: як і було (за витратою)
+      const ratePrev = rateMlps[i - 1];
+      const rateAvg = (rate + ratePrev) / 2;
+      const fuelThisIntervalL = (rateAvg / 1000) * dt;
       summary.fuelUsedL += fuelThisIntervalL;
 
-      const isMoving = vAvg >= MOTION_SPEED_THRESHOLD_KPH;
+      // Idle/Motion: **за OBD**
+      const isMoving = vAvgObd >= MOTION_SPEED_THRESHOLD_KPH;
       if (isMoving) {
         summary.motionDurationSec += dt;
         summary.fuelUsedInMotionL += fuelThisIntervalL;
@@ -340,6 +448,8 @@ const calculateSummary = (samples: ISample[]) => {
         summary.fuelUsedInIdleL += fuelThisIntervalL;
       }
 
+      // Маршрут — як і було
+      const p = samples[i - 1];
       if (s.gps.latitude !== p.gps.latitude || s.gps.longitude !== p.gps.longitude) {
         summary.route.push({ latitude: s.gps.latitude, longitude: s.gps.longitude });
       }
@@ -348,10 +458,12 @@ const calculateSummary = (samples: ISample[]) => {
     }
   }
 
-  summary.avgSpeedKph = parseFloat((totalObdSpeed / n).toFixed(1));
-  summary.avgRpm = Math.round(totalRpm / n);
+  // Середні метрики з OBD
+  const m = Math.max(1, n);
+  summary.avgSpeedKph = parseFloat((totalObdSpeed / m).toFixed(1));
+  summary.avgRpm = Math.round(totalRpm / m);
 
-  const avgMlps = totalFuelRateMlps / n;
+  const avgMlps = totalFuelRateMlps / m;
   summary.avgFuelRateLph = parseFloat((avgMlps * 3.6).toFixed(2));
 
   summary.distanceKm = parseFloat(summary.distanceKm.toFixed(2));
