@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -12,18 +11,15 @@ import {
   keys,
   Select,
 } from '@mantine/core';
-import { useCompanyUsers } from '@/hooks/useCompanyUsers';
-import { Loading } from '@/components/common/Loading';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { IconChevronDown, IconChevronUp, IconSearch, IconSelector } from '@tabler/icons-react';
 import { USER_ROLE_DISPLAY_NAMES, UserRole } from '@/constants/userRoles';
 import classes from '../../styles/UsersTable.module.scss';
 import { useAuth } from '@/context/AuthContext';
 import { updateUserRole } from '@/services/user.service';
-
-interface UsersTableProps {
-  companyId: string;
-}
+import type { User } from '@/types/user.types';
+import { Loading } from '@/components/common/Loading';
+import { getCompanyUsers } from "@/services/company.service";
 
 interface RowData {
   _id: string;
@@ -59,14 +55,12 @@ function Th({ children, reversed, sorted, onSort }: ThProps) {
 }
 
 function filterData(data: RowData[], search: string) {
-  if (data.length === 0) {
-    return [];
-  }
+  if (data.length === 0) return [];
   const query = search.toLowerCase().trim();
   return data.filter((item) =>
     keys(data[0]).some((key) => {
       if (typeof item[key] === 'string') {
-        return item[key].toLowerCase().includes(query);
+        return (item[key] as string).toLowerCase().includes(query);
       }
       return false;
     })
@@ -78,17 +72,13 @@ function sortData(
   payload: { sortBy: keyof RowData | null; reversed: boolean; search: string }
 ) {
   const { sortBy } = payload;
-
-  if (!sortBy) {
-    return filterData(data, payload.search);
-  }
+  if (!sortBy) return filterData(data, payload.search);
 
   return filterData(
     [...data].sort((a, b) => {
-      if (payload.reversed) {
-        return b[sortBy].toString().localeCompare(a[sortBy].toString());
-      }
-      return a[sortBy].toString().localeCompare(b[sortBy].toString());
+      const A = a[sortBy]?.toString() ?? '';
+      const B = b[sortBy]?.toString() ?? '';
+      return payload.reversed ? B.localeCompare(A) : A.localeCompare(B);
     }),
     payload.search
   );
@@ -98,38 +88,54 @@ const availableRoles = Object.entries(USER_ROLE_DISPLAY_NAMES)
   .filter(([key]) => key !== 'company_owner' && key !== 'admin')
   .map(([value, label]) => ({ value, label }));
 
-export const UsersTable = ({ companyId }: UsersTableProps) => {
+export const UsersTable = () => {
   const { user: currentUser } = useAuth();
-  const { users, loading, error, setUsers } = useCompanyUsers(companyId);
+
+  // локальний стан як у VehiclesTable
+  const [users, setUsers] = useState<User[] | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<unknown | null>(null);
+
   const [search, setSearch] = useState('');
-  const [sortedData, setSortedData] = useState<RowData[]>([]);
   const [sortBy, setSortBy] = useState<keyof RowData | null>(null);
   const [reverseSortDirection, setReverseSortDirection] = useState(false);
 
   useEffect(() => {
-    if (users) {
-      const initialData: RowData[] = users.map((user) => ({
-        _id: user._id,
-        name: `${user.firstName} ${user.lastName}`,
-        email: user.email,
-        role: user.role,
-        isOwner: user.role === 'company_owner',
-      }));
-      setSortedData(sortData(initialData, { sortBy, reversed: reverseSortDirection, search }));
-    }
-  }, [users, sortBy, reverseSortDirection, search]);
+    let active = true;
+    (async () => {
+      try {
+        setLoading(true);
+        const data = await getCompanyUsers(); // ← без companyId, як getVehicles()
+        if (!active) return;
+        setUsers(data);
+      } catch (e) {
+        if (!active) return;
+        setError(e);
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
 
-  const handleRoleChange = async (userId: string, newRole: string) => {
-    try {
-      const updatedUser = await updateUserRole(userId, newRole);
-      setUsers((prevUsers) =>
-        prevUsers.map((user) => (user._id === updatedUser._id ? updatedUser : user))
-      );
-    } catch (err) {
-      console.error('Failed to update user role:', err);
-      // Optionally, show an error message to the user
-    }
-  };
+  // проєкція у RowData + сортування/пошук
+  const rowsData: RowData[] = useMemo(() => {
+    if (!users) return [];
+    return users.map((user) => ({
+      _id: user._id,
+      name: `${user.firstName} ${user.lastName}`.trim(),
+      email: user.email,
+      role: user.role,
+      isOwner: user.role === 'company_owner',
+    }));
+  }, [users]);
+
+  const sortedData = useMemo(
+    () => sortData(rowsData, { sortBy, reversed: reverseSortDirection, search }),
+    [rowsData, sortBy, reverseSortDirection, search]
+  );
 
   const setSorting = (field: keyof RowData) => {
     const reversed = field === sortBy ? !reverseSortDirection : false;
@@ -138,24 +144,38 @@ export const UsersTable = ({ companyId }: UsersTableProps) => {
   };
 
   const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const { value } = event.currentTarget;
-    setSearch(value);
+    setSearch(event.currentTarget.value);
+  };
+
+  const handleRoleChange = async (userId: string, newRole: string) => {
+    try {
+      const updatedUser = await updateUserRole(userId, newRole);
+      // оновлюємо локальний список (як у VehiclesTable)
+      setUsers((prev) =>
+        (prev ?? []).map((u) => (u._id === updatedUser._id ? updatedUser : u))
+      );
+    } catch (err) {
+      console.error('Failed to update user role:', err);
+      // TODO: показати нотифікацію/alert
+    }
   };
 
   if (loading) return <Loading />;
   if (error) return <Text c="red">Error loading users.</Text>;
 
-  const canEditRoles = currentUser?.role === 'company_owner' || currentUser?.role === 'logist';
+  const canEditRoles =
+    currentUser?.role === 'company_owner' || currentUser?.role === 'logist';
 
   const rows = sortedData.map((row) => {
     const isCurrentUser = row._id === currentUser?._id;
     const isTargetOwner = row.isOwner;
     const isRequesterLogist = currentUser?.role === 'logist';
 
-    const canChangeThisUserRole = canEditRoles && !isCurrentUser && !(isRequesterLogist && isTargetOwner);
+    const canChangeThisUserRole =
+      canEditRoles && !isCurrentUser && !(isRequesterLogist && isTargetOwner);
 
     return (
-      <Table.Tr key={row.name}>
+      <Table.Tr key={row._id}>
         <Table.Td>{row.name}</Table.Td>
         <Table.Td>{row.email}</Table.Td>
         <Table.Td>
@@ -182,20 +202,34 @@ export const UsersTable = ({ companyId }: UsersTableProps) => {
         value={search}
         onChange={handleSearchChange}
       />
+
       <Table horizontalSpacing="md" verticalSpacing="xs" miw={700} layout="fixed">
         <Table.Tbody>
           <Table.Tr>
-            <Th sorted={sortBy === 'name'} reversed={reverseSortDirection} onSort={() => setSorting('name')}>
+            <Th
+              sorted={sortBy === 'name'}
+              reversed={reverseSortDirection}
+              onSort={() => setSorting('name')}
+            >
               Name
             </Th>
-            <Th sorted={sortBy === 'email'} reversed={reverseSortDirection} onSort={() => setSorting('email')}>
+            <Th
+              sorted={sortBy === 'email'}
+              reversed={reverseSortDirection}
+              onSort={() => setSorting('email')}
+            >
               Email
             </Th>
-            <Th sorted={sortBy === 'role'} reversed={reverseSortDirection} onSort={() => setSorting('role')}>
+            <Th
+              sorted={sortBy === 'role'}
+              reversed={reverseSortDirection}
+              onSort={() => setSorting('role')}
+            >
               Role
             </Th>
           </Table.Tr>
         </Table.Tbody>
+
         <Table.Tbody>
           {rows.length > 0 ? (
             rows

@@ -32,7 +32,7 @@ const AssignDriverForm: React.FC<AssignDriverFormProps> = ({ vehicle, onSubmit, 
     const fetchUsers = async () => {
       if (user && user.companyId) {
         try {
-          const companyUsers = await getCompanyUsers(user.companyId);
+          const companyUsers = await getCompanyUsers();
           const drivers = companyUsers.filter((user) => user.role === 'driver');
           setUsers(drivers);
         } catch (error) {

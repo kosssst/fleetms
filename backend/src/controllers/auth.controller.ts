@@ -7,7 +7,7 @@ import { User } from '../types/user.types';
 
 const generateToken = (id: string) => {
   return jwt.sign({ id }, process.env.JWT_SECRET as string, {
-    expiresIn: '1h',
+    expiresIn: '7d',
   });
 };
 

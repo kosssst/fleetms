@@ -31,6 +31,16 @@ export interface ITrip extends Document {
       latitude: number;
       longitude: number;
     }[];
+    fuelUsedInIdleL: number;
+    fuelUsedInMotionL: number;
+    idleDurationSec: number;
+    motionDurationSec: number;
+    speedProfile: {
+      timestamp: Date;
+      obdSpeedKph: number;
+      gpsSpeedKph: number;
+      mergedSpeedKph: number;
+    }[];
   };
 }
 
@@ -64,6 +74,16 @@ const TripSchema = new Schema<ITrip>({
     route: [{
       latitude: { type: Number },
       longitude: { type: Number },
+    }],
+    fuelUsedInIdleL: { type: Number },
+    fuelUsedInMotionL: { type: Number },
+    idleDurationSec: { type: Number },
+    motionDurationSec: { type: Number },
+    speedProfile: [{
+      timestamp: { type: Date },
+      obdSpeedKph: { type: Number },
+      gpsSpeedKph: { type: Number },
+      mergedSpeedKph: { type: Number },
     }],
   },
 }, {

@@ -8,6 +8,9 @@ export interface IVehicle extends Document {
   numberOfCylinders: number;
   companyId: Types.ObjectId;
   driverId?: Types.ObjectId;
+  totalDistanceKm: number;
+  totalFuelUsedL: number;
+  tripsUsedInTotalDistanceAndFuel: Array<Types.ObjectId>;
 }
 
 const VehicleSchema = new Schema<IVehicle>({
@@ -16,7 +19,10 @@ const VehicleSchema = new Schema<IVehicle>({
   number: { type: String, required: true, unique: true },
   numberOfCylinders: { type: Number, required: true },
   companyId: { type: Schema.Types.ObjectId, ref: 'Company', required: true },
-  driverId: { type: Schema.Types.ObjectId, ref: 'User' }
+  driverId: { type: Schema.Types.ObjectId, ref: 'User' },
+  totalDistanceKm: { type: Number, default: 0 },
+  totalFuelUsedL: { type: Number, default: 0 },
+  tripsUsedInTotalDistanceAndFuel: [{ type: Schema.Types.ObjectId, ref: 'Trip' }],
 }, {
   timestamps: true,
   toJSON: {

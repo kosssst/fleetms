@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { Table, Button, HoverCard, Text } from '@mantine/core';
+import { Table, Button, HoverCard } from '@mantine/core';
 import { useRouter } from 'next/navigation';
 import { getTrips } from '@/services/trip.service';
 import { Trip } from '@/types/trip.types';
@@ -37,15 +37,10 @@ export const TripsTable = () => {
         {trip.status === 'completed' && (
           <HoverCard width={280} shadow="md">
             <HoverCard.Target>
-              <Button onClick={() => router.push(`/trips/${trip.id}`)}>
+              <Button onClick={() => router.push(`/company/trips/${trip.id}`)}>
                 View Details
               </Button>
             </HoverCard.Target>
-            <HoverCard.Dropdown>
-              <Text size="sm">
-                View the details of this trip, including the route and summary.
-              </Text>
-            </HoverCard.Dropdown>
           </HoverCard>
         )}
       </Table.Td>

@@ -1,6 +1,7 @@
 import { Schema, model, Document, Types } from 'mongoose';
 
 export interface ITrip extends Document {
+  _id: Types.ObjectId;
   driverId: Types.ObjectId;
   vehicleId: Types.ObjectId;
   companyId: Types.ObjectId;
@@ -26,6 +27,16 @@ export interface ITrip extends Document {
       latitude: number;
       longitude: number;
     }[];
+    fuelUsedInIdleL: number;
+    fuelUsedInMotionL: number;
+    idleDurationSec: number;
+    motionDurationSec: number;
+    speedProfile: {
+      timestamp: Date;
+      obdSpeedKph: number;
+      gpsSpeedKph: number;
+      mergedSpeedKph: number;
+    }[];
   };
   predictionSummary?: {
     fuelUsedL: number;
@@ -39,6 +50,7 @@ export interface ITrip extends Document {
 }
 
 const TripSchema = new Schema<ITrip>({
+  _id: { type: Schema.Types.ObjectId, ref: 'Trip' },
   driverId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
   vehicleId: { type: Schema.Types.ObjectId, ref: 'Vehicle', required: true },
   companyId: { type: Schema.Types.ObjectId, ref: 'Company', required: true },
@@ -63,6 +75,16 @@ const TripSchema = new Schema<ITrip>({
     route: [{
       latitude: { type: Number },
       longitude: { type: Number },
+    }],
+    fuelUsedInIdleL: { type: Number },
+    fuelUsedInMotionL: { type: Number },
+    idleDurationSec: { type: Number },
+    motionDurationSec: { type: Number },
+    speedProfile: [{
+      timestamp: { type: Date },
+      obdSpeedKph: { type: Number },
+      gpsSpeedKph: { type: Number },
+      mergedSpeedKph: { type: Number },
     }],
   },
   predictionSummary: {

@@ -59,21 +59,17 @@ export const getCompany = asyncHandler(async (req: RequestWithUser, res: Respons
 
 export const getCompanyUsers = asyncHandler(async (req: RequestWithUser, res: Response) => {
   const user = req.user;
-  const { companyId } = req.params;
 
-  if (!user) {
+  if (!user || !user.companyId) {
     res.status(401);
     throw new Error('Not authorized');
   }
 
-  if (!user.companyId && !companyId) {
-    res.status(400);
-    throw new Error('Company ID must be provided');
-  }
-
-  const targetCompanyId = companyId || user.companyId;
-
-  const company = await CompanyModel.findById(targetCompanyId).populate('members');
+  // Повертаємо учасників компанії користувача
+  const company = await CompanyModel
+    .findById(user.companyId)
+    .populate('members') // можна обмежити поля через select
+    .lean();
 
   if (!company) {
     res.status(404);

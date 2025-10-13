@@ -1,12 +1,13 @@
 "use client";
 
-import {CompanyPageBox} from "@/components/containers/CompanyPageBox";
+import {CompanyInfoModule} from "@/components/containers/CompanyInfo.module";
+import {Paper} from "@mantine/core";
 
 const CompanyPage = () => {
   return (
-    <div className="main-context">
-      <CompanyPageBox />
-    </div>
+    <Paper withBorder p="md" mt="md" radius="md">
+      <CompanyInfoModule/>
+    </Paper>
   )
 }
 

@@ -12,8 +12,8 @@ export const createCompany = async (companyData: Pick<Company, 'name' | 'address
   return data;
 };
 
-export const getCompanyUsers = async (companyId: string) => {
-  const { data } = await api.get<User[]>(`/company/${companyId}/users`);
+export const getCompanyUsers = async (): Promise<User[]> => {
+  const { data } = await api.get<User[]>('/company/users');
   return data;
 };
 
